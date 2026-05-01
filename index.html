@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DVVNL Salary Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#0D1117;--surface:#161B22;--surface2:#1C2330;--surface3:#21283A;
+  --border:#30363D;--border2:#3D4551;
+  --blue:#3B82F6;--blue2:#1D4ED8;--blue-g:rgba(59,130,246,.15);
+  --green:#22C55E;--green2:#166534;--green-g:rgba(34,197,94,.12);
+  --amber:#F59E0B;--red:#EF4444;
+  --text:#E6EDF3;--text2:#8B949E;--text3:#6E7681;
+  --font:'DM Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:300}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo-text{font-size:14px;font-weight:700}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.tbadge{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 12px;border-radius:20px;font-family:var(--mono)}
+.tbadge.live{border-color:var(--green);color:var(--green)}
+.layout{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:calc(100vh - 52px);position:sticky;top:52px;overflow:hidden}
+.sb-scroll{flex:1;overflow-y:auto;padding:16px}
+.sb-scroll::-webkit-scrollbar{width:4px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.main{flex:1;padding:20px;overflow-y:auto}
+.sb-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.sb-section{margin-bottom:20px}
+.search-wrap{position:relative;margin-bottom:8px}
+.search-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 32px 9px 34px;border-radius:8px;font-size:13px;outline:none;font-family:var(--font);transition:border .15s,box-shadow .15s}
+.search-wrap input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-g)}
+.search-wrap input::placeholder{color:var(--text3)}
+.s-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
+.s-clr{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;display:none;padding:0;line-height:1}
+.suggest{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;z-index:400;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+.sug-item{padding:9px 12px;cursor:pointer;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
+.sug-item:last-child{border-bottom:none}
+.sug-item:hover{background:var(--surface3)}
+.sug-code{font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600;min-width:58px}
+.sug-name{flex:1;font-size:12px}
+.sug-zone{font-size:10px;color:var(--text3);background:var(--surface3);padding:2px 6px;border-radius:6px}
+.flt-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.flt-select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:7px;font-size:12px;outline:none;cursor:pointer;font-family:var(--font)}
+.flt-select option{background:var(--surface2)}
+.search-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
+.search-btn:hover{background:var(--blue2)}
+.stat-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat-mini{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 11px}
+.sml{font-size:10px;color:var(--text3);margin-bottom:3px}
+.smv{font-size:15px;font-weight:700;font-family:var(--mono);color:var(--blue)}
+.upload-panel{background:var(--surface);border-top:1px solid var(--border);padding:14px 16px}
+.up-tabs{display:flex;gap:2px;margin-bottom:12px;background:var(--surface2);border-radius:8px;padding:3px}
+.up-tab{flex:1;padding:6px;text-align:center;font-size:11px;font-weight:600;border-radius:6px;cursor:pointer;color:var(--text3);border:none;background:none;font-family:var(--font);transition:all .15s}
+.up-tab.active{background:var(--surface3);color:var(--text);border:1px solid var(--border)}
+.up-pane{display:none}
+.up-pane.active{display:block}
+.drop-zone{border:2px dashed var(--border2);border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--surface2);margin-bottom:8px}
+.drop-zone.drag-over{border-color:var(--blue);background:var(--blue-g)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:22px;margin-bottom:6px}
+.dz-text{font-size:11px;color:var(--text2);font-weight:500}
+.dz-sub{font-size:10px;color:var(--text3);margin-top:3px;line-height:1.5}
+.file-list{max-height:110px;overflow-y:auto;margin-bottom:8px}
+.file-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface3);border-radius:6px;margin-bottom:4px}
+.fbadge{padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+.fb-ok{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+.fb-warn{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
+.fname{flex:1;font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frem{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0}
+.frem:hover{color:var(--red)}
+.up-btn{width:100%;background:var(--green2);border:1px solid var(--green);color:var(--green);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s}
+.up-btn:hover{background:var(--green);color:#fff}
+.up-btn:disabled{opacity:.5;cursor:not-allowed}
+.up-log{font-size:10px;font-family:var(--mono);color:var(--green);background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:8px;margin-top:6px;display:none;max-height:100px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6}
+.progress-bar{width:100%;height:4px;background:var(--surface3);border-radius:2px;margin-top:6px;display:none;overflow:hidden}
+.progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s;width:0%}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:420px;text-align:center;gap:12px}
+.welcome-icon{font-size:56px}
+.welcome-title{font-size:20px;font-weight:700}
+.welcome-sub{font-size:13px;color:var(--text3);line-height:1.6;max-width:380px}
+.code-hint{font-family:var(--mono);background:var(--surface);border:1px solid var(--border);padding:5px 14px;border-radius:6px;font-size:12px;color:var(--blue)}
+.result{display:none}
+.empty{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:300px;text-align:center;gap:10px}
+.emp-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;border-left:4px solid var(--blue)}
+.emp-avatar{width:54px;height:54px;border-radius:12px;background:linear-gradient(135deg,var(--blue2),var(--blue));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;font-family:var(--mono);flex-shrink:0}
+.emp-name{font-size:18px;font-weight:700;margin-bottom:3px}
+.emp-meta{font-size:12px;color:var(--text3);font-family:var(--mono);margin-bottom:6px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11px;padding:3px 10px;border-radius:8px;font-weight:600;border:1px solid}
+.p-blue{background:rgba(59,130,246,.1);color:var(--blue);border-color:rgba(59,130,246,.3)}
+.p-green{background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.3)}
+.p-gray{background:var(--surface2);color:var(--text2);border-color:var(--border)}
+.ecr{margin-left:auto;text-align:right;flex-shrink:0}
+.ecr-label{font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.ecr-val{font-size:24px;font-weight:700;font-family:var(--mono);color:var(--green)}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:14px}
+.info-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.ib-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.ib-val{font-size:12px;font-weight:600;font-family:var(--mono);word-break:break-all}
+.tc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+.tc-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px}
+.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.mt{border-radius:10px;border:1px solid var(--border);background:var(--surface2);padding:14px;position:relative;overflow:hidden}
+.mt-bar{position:absolute;left:0;top:0;bottom:0;width:3px}
+.bar-ok{background:var(--green)}.bar-diff{background:var(--amber)}.bar-np{background:var(--red)}.bar-empty{background:var(--border2)}
+.mt-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mt-mlbl{font-size:12px;font-weight:700;font-family:var(--mono)}
+.mt-chip{font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.mc-ok{background:rgba(34,197,94,.15);color:var(--green)}
+.mc-diff{background:rgba(245,158,11,.15);color:var(--amber)}
+.mc-np{background:rgba(239,68,68,.15);color:var(--red)}
+.mc-empty{background:var(--surface3);color:var(--text3)}
+.mt-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.mt-key{font-size:11px;color:var(--text3)}
+.mt-val{font-size:13px;font-weight:600;font-family:var(--mono)}
+.mt-div{height:1px;background:var(--border);margin:8px 0}
+.mt-meta{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;align-items:center}
+.mt-tag{background:var(--surface3);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-size:9px;color:var(--text3);font-family:var(--mono)}
+.mt-nodata{font-size:12px;color:var(--text3);text-align:center;padding:16px 0;font-style:italic}
+.chip{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;display:inline-block}
+.ch-ok{background:rgba(34,197,94,.15);color:var(--green)}
+.ch-cr{background:rgba(59,130,246,.15);color:var(--blue)}
+.ch-fs{background:rgba(245,158,11,.15);color:var(--amber)}
+.ch-rt{background:rgba(239,68,68,.15);color:var(--red)}
+.ch-nd{background:var(--surface3);color:var(--text3)}
+.tbl-wrap{overflow-x:auto}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th{text-align:left;padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+.dtbl td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.dtbl tr:hover td{background:var(--surface2)}
+.mono{font-family:var(--mono);font-size:11px}
+.amt{text-align:right}
+@media(max-width:768px){.layout{flex-direction:column}.sidebar{width:100%;height:auto;position:static}.month-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">&#9889;</div>
+    <div><div class="logo-text">DVVNL Salary Dashboard</div><div class="logo-sub">Sai Computers Ltd &middot; Cluster Management</div></div>
+  </div>
+  <div class="topbar-right">
+    <span class="tbadge" id="badge-emp">337 employees</span>
+    <span class="tbadge" id="badge-months">NOV-25, DEC-25</span>
+    <span class="tbadge live">&#9679; LIVE</span>
+  </div>
+</div>
+<div class="layout">
+<div class="sidebar">
+<div class="sb-scroll">
+  <div class="sb-section">
+    <div class="sb-label">Search Employee</div>
+    <div class="search-wrap">
+      <span class="s-ico">&#128269;</span>
+      <input type="text" id="srch" placeholder="ID (MA1036) or Name&#8230;" autocomplete="off"/>
+      <button class="s-clr" id="sclr" onclick="clearSearch()">&#215;</button>
+      <div class="suggest" id="suggest"></div>
+    </div>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">Filters</div>
+    <div class="flt-grid">
+      <select class="flt-select" id="f-zone"><option value="">All Zones</option><option value="ALIGARH">Aligarh</option><option value="ETAH">Etah</option><option value="MATHURA">Mathura</option></select>
+      <select class="flt-select" id="f-month"><option value="">All Months</option></select>
+      <select class="flt-select" id="f-type"><option value="">All Sheets</option><option value="paid">Paid Sheet</option><option value="notpaid">Not Paid Sheet</option></select>
+      <select class="flt-select" id="f-status"><option value="">All Status</option><option value="Success">Success (SBI)</option><option value="Credited">Credited (NEFT)</option><option value="Fund Settled">Fund Settled</option><option value="Returned">Returned/Failed</option><option value="unpaid">Not Paid</option></select>
+    </div>
+    <button class="search-btn" onclick="doSearch()">&#128269; Search</button>
+  </div>
+  <div class="sb-section">
+    <div class="sb-label">Summary</div>
+    <div class="stat-mini-grid">
+      <div class="stat-mini"><div class="sml">Meter Readers</div><div class="smv" id="st-emp">308</div></div>
+      <div class="stat-mini"><div class="sml">Months</div><div class="smv" id="st-months">2</div></div>
+      <div class="stat-mini"><div class="sml">PDF Records</div><div class="smv" id="st-pdf">0</div></div>
+      <div class="stat-mini"><div class="sml">Zones</div><div class="smv" id="st-zones">1</div></div>
+    </div>
+  </div>
+</div>
+<div class="upload-panel">
+  <div class="up-tabs">
+    <button class="up-tab active" onclick="switchTab('xl')" id="tab-xl">&#128202; Salary Sheets</button>
+    <button class="up-tab" onclick="switchTab('pdf')" id="tab-pdf">&#128196; Payment PDFs</button>
+  </div>
+  <div class="up-pane active" id="pane-xl">
+    <div class="drop-zone" ondragover="dzOver(event,'xl')" ondragleave="dzLeave('xl')" ondrop="dzDrop(event,'xl')">
+      <input type="file" id="up-xl" accept=".xlsx,.xls" multiple onchange="filesChosen('xl')"/>
+      <div class="dz-icon">&#128202;</div>
+      <div class="dz-text">Drop Excel files or click</div>
+      <div class="dz-sub">Month &amp; Zone auto-detected from filename<br>Multiple files OK</div>
+    </div>
+    <div class="file-list" id="fl-xl"></div>
+    <button class="up-btn" id="btn-xl" onclick="processExcel()">&#11014; Load Salary Sheets</button>
+    <div class="progress-bar" id="pb-xl"><div class="progress-fill" id="pf-xl"></div></div>
+    <div class="up-log" id="log-xl"></div>
+  </div>
+  <div class="up-pane" id="pane-pdf">
+    <div class="drop-zone" ondragover="dzOver(event,'pdf')" ondragleave="dzLeave('pdf')" ondrop="dzDrop(event,'pdf')">
+      <input type="file" id="up-pdf" accept=".pdf" multiple onchange="filesChosen('pdf')"/>
+      <div class="dz-icon">&#128196;</div>
+      <div class="dz-text">Drop SBI/NEFT Payment PDFs</div>
+      <div class="dz-sub">Month &amp; Zone auto-detected from filename<br>Multiple PDFs OK &mdash; uses PDF.js for extraction</div>
+    </div>
+    <div class="file-list" id="fl-pdf"></div>
+    <button class="up-btn" id="btn-pdf" onclick="processPDFs()">&#11014; Load Payment PDFs</button>
+    <div class="progress-bar" id="pb-pdf"><div class="progress-fill" id="pf-pdf"></div></div>
+    <div class="up-log" id="log-pdf"></div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <div class="sb-label" style="margin-bottom:8px">OR Upload Payment CSV</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;line-height:1.5">
+        Convert PDF to CSV using online tools, then upload here.<br>
+        Required columns: EMP_CODE, PAID_AMOUNT, STATUS, MONTH, MODE
+      </div>
+      <div class="drop-zone" style="padding:10px;margin-bottom:6px" ondragover="dzOver(event,'csv')" ondragleave="dzLeave('csv')" ondrop="dzDrop(event,'csv')">
+        <input type="file" id="up-csv" accept=".csv,.txt" multiple onchange="filesChosen('csv')"/>
+        <div class="dz-text">Drop Payment CSV files</div>
+        <div class="dz-sub">Auto-detect month from filename or EMP_CODE column</div>
+      </div>
+      <div class="file-list" id="fl-csv"></div>
+      <button class="up-btn" id="btn-csv" onclick="processCSV()" style="background:rgba(168,85,247,.2);border-color:#A855F7;color:#A855F7">&#11014; Load CSV Payment Data</button>
+      <div class="up-log" id="log-csv"></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="main">
+  <div class="welcome" id="welcome">
+    <div class="welcome-icon">&#128269;</div>
+    <div class="welcome-title">Search any Employee</div>
+    <div class="welcome-sub">Search <strong style="color:var(--blue)">Meter Reader</strong> employees only.<br>Type MA code or name to view salary &amp; payment history.<br><br>Upload salary sheets or PDFs using the left panel.</div>
+    <div class="code-hint">Try: MA1036 &nbsp;&middot;&nbsp; MA0625 &nbsp;&middot;&nbsp; MA2744</div>
+  </div>
+  <div class="empty" id="empty">
+    <div style="font-size:40px">&#128683;</div>
+    <div style="font-size:16px;font-weight:700" id="empty-msg">No meter reader found</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">Only Meter Reader (MR) employees can be searched</div>
+  </div>
+  <div class="result" id="result">
+    <div class="emp-card">
+      <div class="emp-avatar" id="r-avatar"></div>
+      <div style="flex:1;min-width:0">
+        <div class="emp-name" id="r-name"></div>
+        <div class="emp-meta" id="r-meta"></div>
+        <div class="pills" id="r-pills"></div>
+      </div>
+      <div class="ecr"><div class="ecr-label">Latest Net Pay</div><div class="ecr-val" id="r-latest"></div></div>
+    </div>
+    <div class="info-grid">
+      <div class="info-box"><div class="ib-label">Employee Code</div><div class="ib-val" id="r-code"></div></div>
+      <div class="info-box"><div class="ib-label">Designation</div><div class="ib-val" id="r-desg" style="font-family:var(--font);font-size:13px"></div></div>
+      <div class="info-box"><div class="ib-label">Division</div><div class="ib-val" id="r-div" style="font-family:var(--font);font-size:13px"></div></div>
+      <div class="info-box"><div class="ib-label">Zone</div><div class="ib-val" id="r-zone" style="font-family:var(--font);font-size:13px"></div></div>
+      <div class="info-box"><div class="ib-label">Account No.</div><div class="ib-val" id="r-acc" style="font-size:11px"></div></div>
+      <div class="info-box"><div class="ib-label">IFSC</div><div class="ib-val" id="r-ifsc"></div></div>
+    </div>
+    <div class="tc">
+      <div class="tc-title">&#128197; Month-wise Salary &amp; Payment History</div>
+      <div class="month-grid" id="month-grid"></div>
+    </div>
+    <div class="tc">
+      <div class="tc-title">&#128203; Detailed Comparison Table</div>
+      <div class="tbl-wrap">
+        <table class="dtbl">
+          <thead><tr>
+            <th>Month</th><th>Source Sheet</th>
+            <th class="amt">Net Payable</th><th class="amt">Paid Amount</th><th class="amt">Difference</th>
+            <th>Mode</th><th>Status</th><th>Remark</th>
+          </tr></thead>
+          <tbody id="dtl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const DB={"AL205":["ARUN KUMAR","ASSISTANT MANAGER","EUDC-ALIGARH","ALIGARH","33284792994","SBIN0001839",{"NOV-25":[27250,27250,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[27250,27250,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL207":["SHUBHAM GAUR","SR. SUPERVISOR","EUDC-ALIGARH","ALIGARH","20172238052","SBIN0003346",{"NOV-25":[16450,16450,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[16450,16450,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL310":["GOPAL SWAROOP","SR. SUPERVISOR","EDC-I ALIGARH","ALIGARH","503102010122555","UBIN0550311",{"NOV-25":[16450,16450,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[16450,0,"","","",1,"saalry sheet staff"]}],"AL159":["PRAMOD KUMAR CHAUHAN","SUPERVISOR","EDC-II ALIGARH","ALIGARH","503102010122676","UBIN0550311",{"NOV-25":[11958,11958,"Fund Settled","NEFT","Fund settled by RBI",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL160":["MOHIT SINGH","SUPERVISOR","EDC-II ALIGARH","ALIGARH","1000101027787","CNRB0001000",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL161":["ANUBHAV SARASWAT","SUPERVISOR","EDC-II ALIGARH","ALIGARH","503102010122609","UBIN0550311",{"NOV-25":[13819,13819,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL163":["SANDEEP SINGH JADAUN","SUPERVISOR","EDC-I ALIGARH","ALIGARH","305902010058582","UBIN0530590",{"NOV-25":[11958,11958,"Fund Settled","NEFT","Fund settled by RBI",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL164":["SHIVAM KUMAR","SUPERVISOR","EDC-I ALIGARH","ALIGARH","3646001700010484","PUNB0364600",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL165":["AKASH RAJPUT","SUPERVISOR","EDC-I ALIGARH","ALIGARH","38642964894","SBIN0001027",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL166":["VIJAY KUMAR","SUPERVISOR","EDC-I ALIGARH","ALIGARH","2960000100203098","PUNB0296000",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL167":["RAJKAPOOR","SUPERVISOR","EDC-I ALIGARH","ALIGARH","503102010122814","UBIN0550311",{"NOV-25":[13819,13819,"Fund Settled","NEFT","Fund settled by RBI",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL293":["BALVIR SINGH","SUPERVISOR","EUDC-ALIGARH","ALIGARH","33916004070","SBIN0016272",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL168":["SANDEEP KUMAR CHAUHAN","SUPERVISOR","EDC-I ALIGARH","ALIGARH","38250989084","SBIN0000604",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL295":["NARENDRA KUMAR","SUPERVISOR","EDC-I ALIGARH","ALIGARH","31584755412","SBIN0014208",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL169":["ANKIT JAIN","SUPERVISOR","EUDC-ALIGARH","ALIGARH","503102120000645","UBIN0550311",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL162":["JITENDRA KUMAR","SUPERVISOR","EDC-II ALIGARH","ALIGARH","7508000100034570","PUNB0750800",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL171":["BRIJESH KUMAR","SUPERVISOR","EDC-II ALIGARH","ALIGARH","50100212395200","HDFC0000922",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL172":["ABHISHEK BANSAL","SUPERVISOR","EDC-II ALIGARH","ALIGARH","110132686212","CNRB0018510",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL294":["MANOJ KUMAR","SUPERVISOR","EUDC-ALIGARH","ALIGARH","11436208083","SBIN0002387",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL282":["MUKESH KUMAR BHARDWAJ","SUPERVISOR","EUDC-ALIGARH","ALIGARH","38256975837","SBIN0000604",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"AL326":["LOKESH","SUPERVISOR","EUDC-ALIGARH","ALIGARH","59310309502","IPOS0000001",{"NOV-25":[0,0,"","","",1,"saalry sheet staff"],"DEC-25":[0,0,"","","",1,"saalry sheet staff"]}],"AL256":["LAKHAN SINGH BAGHEL","SUPERVISOR","EDC-I ALIGARH","ALIGARH","344301501102","ICIC0003443",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL257":["PRAKHAR SINGH","SUPERVISOR","EDC-I ALIGARH","ALIGARH","503102010122818","UBIN0550311",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL258":["VIKAS RANA","SUPERVISOR","EUDC-ALIGARH","ALIGARH","1048058985","KKBK0005293",{"NOV-25":[11958,11958,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[11958,0,"","","",1,"saalry sheet staff"]}],"AL399":["SANDEEP KUMAR","SUPERVISOR","EDC ALIGARH","ALIGARH","35303229802","SBIN0017570",{"NOV-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"],"DEC-25":[11958,11958,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"TE055":["HAR PYARI","SWEEPER","EDD-II ALIGARH","ALIGARH","123010410001445","BKID0ARYAGB",{"NOV-25":[3000,3000,"Returned","NEFT","IFSC Invalid - Returned",1,"saalry sheet staff"],"DEC-25":[3000,0,"","","",1,"saalry sheet staff"]}],"TE056":["JATIN PATHAK","OFFICE STAFF","EDC-I ALIGARH","ALIGARH","32708100019981","BARB0RAMGHA",{"NOV-25":[8000,8000,"Credited","NEFT","Credited to beneficiary",1,"saalry sheet staff"],"DEC-25":[8000,0,"","","",1,"saalry sheet staff"]}],"AL478":["RAJEEV RANJAN KUMAR","SENIOR MANAGER","EUDC-ALIGARH","ALIGARH","44457016015","SBIN0000680",{"NOV-25":[65915,65915,"Success","SBI","Direct credit success",1,"saalry sheet staff"]}],"MA2752":["DEVKI NANDAN","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","503102010122641","UBIN0550311",{"NOV-25":[1015,1015,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[1050,0,"","","",1,"salary sheet MR URBAN"]}],"MA2744":["AMIT KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","37972281107","SBIN0016272",{"NOV-25":[9617,9617,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[9108,7983,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2736":["MOHD SALMAN","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902010057856","UBIN0530590",{"NOV-25":[1503,1503,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[1554,0,"","","",1,"salary sheet MR URBAN"]}],"MA2735":["PRAMOD KUMAR","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","36136584701","SBIN0003773",{"NOV-25":[2082,2082,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[1839,1839,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2734":["RAKESH","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","503102010122886","UBIN0550311",{"NOV-25":[6772,6772,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[5922,0,"","","",1,"salary sheet MR URBAN"]}],"MA2733":["SURENDRA PAL SINGH","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122544","UBIN0550311",{"NOV-25":[4314,4314,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3951,0,"","","",1,"salary sheet MR URBAN"]}],"MA2732":["PRAVEEN CHANDRA GAUR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","33843917514","SBIN0003773",{"NOV-25":[2276,2276,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[2024,2024,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2731":["KARAM VEER SINGH","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122791","UBIN0550311",{"NOV-25":[2942,2942,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2940,0,"","","",1,"salary sheet MR URBAN"]}],"MA2695":["PRINCE KUMAR","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","37170809705","SBIN0061795",{"NOV-25":[978,978,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[887,887,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2691":["YOGESH KUMAR","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","85780100002706","BARB0DBLODH",{"NOV-25":[2096,2096,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[1983,0,"","","",1,"salary sheet MR URBAN"]}],"MA2690":["VINOD KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","305902010057834","UBIN0530590",{"NOV-25":[2645,2645,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3238,0,"","","",1,"salary sheet MR URBAN"]}],"MA2688":["CHETAN KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","32708100025191","BARB0RAMGHA",{"NOV-25":[4739,4739,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4125,0,"","","",1,"salary sheet MR URBAN"]}],"MA2682":["ANSHUMAN","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","305902010057871","UBIN0530590",{"NOV-25":[3181,3181,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3812,0,"","","",1,"salary sheet MR URBAN"]}],"MA2406":["SAURAV KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","40313149416","SBIN0016272",{"NOV-25":[5597,5597,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[5802,2552,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2405":["GOPI KISHAN BHARDWAJ","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122809","UBIN0550311",{"NOV-25":[3789,3789,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3871,0,"","","",1,"salary sheet MR URBAN"]}],"MA2225":["YOGESH KUMAR SARSWAT","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","503102010122590","UBIN0550311",{"NOV-25":[1040,1040,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[1020,0,"","","",1,"salary sheet MR URBAN"]}],"MA2222":["AMAN KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","503102010122728","UBIN0550311",{"NOV-25":[1797,1797,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2409,0,"","","",1,"salary sheet MR URBAN"]}],"MA2208":["SATYA PRAKASH","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902010058826","UBIN0530590",{"NOV-25":[2701,2701,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2587,0,"","","",1,"salary sheet MR URBAN"]}],"MA2203":["PREM CHANDRA","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122535","UBIN0550311",{"NOV-25":[6045,6045,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[5628,0,"","","",1,"salary sheet MR URBAN"]}],"MA2172":["KUNDAN LAL","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010057865","UBIN0530590",{"NOV-25":[8941,8941,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7298,0,"","","",1,"salary sheet MR URBAN"]}],"MA2168":["ARJUN","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","2961001700074029","PUNB0296100",{"NOV-25":[6141,6141,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4670,0,"","","",1,"salary sheet MR URBAN"]}],"MA2153":["PEEYUSH RAJU","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","42510100000789","BARB0SWARNJ",{"NOV-25":[2554,2554,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2549,0,"","","",1,"salary sheet MR URBAN"]}],"MA2149":["BRIJESH SHARMA","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","775010110008429","BKID0007750",{"NOV-25":[5331,5331,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4758,0,"","","",1,"salary sheet MR URBAN"]}],"MA2145":["SURAJ SINGH","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","7508000100015061","PUNB0750800",{"NOV-25":[6589,6589,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4002,0,"","","",1,"salary sheet MR URBAN"]}],"MA1614":["GAURAV KUMAR","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902010054264","UBIN0530590",{"NOV-25":[2698,2698,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2784,0,"","","",1,"salary sheet MR URBAN"]}],"MA1609":["VIMAL KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010057913","UBIN0530590",{"NOV-25":[3364,3364,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3437,0,"","","",1,"salary sheet MR URBAN"]}],"MA1604":["MOHAMMAD ARIF","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","364101059924","CNRB0000364",{"NOV-25":[1033,1033,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2420,0,"","","",1,"salary sheet MR URBAN"]}],"MA1601":["DILIP KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","503102010122476","UBIN0550311",{"NOV-25":[5874,5874,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[6023,0,"","","",1,"salary sheet MR URBAN"]}],"MA1593":["SUNIL KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","305902010058691","UBIN0530590",{"NOV-25":[8960,8960,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3132,0,"","","",1,"salary sheet MR URBAN"]}],"MA1573":["PREM PRATAP SINGH","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902010057855","UBIN0530590",{"NOV-25":[2203,2203,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2198,0,"","","",1,"salary sheet MR URBAN"]}],"MA1534":["VINAY KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","32282957639","SBIN0011641",{"NOV-25":[2848,2848,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[0,0,"","","",1,"salary sheet MR URBAN"]}],"MA1509":["NEERAJ KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122545","UBIN0550311",{"NOV-25":[4462,4462,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3775,0,"","","",1,"salary sheet MR URBAN"]}],"MA1505":["KAMAL KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","452202010081803","UBIN0545228",{"NOV-25":[4028,4028,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4192,0,"","","",1,"salary sheet MR URBAN"]}],"MA1504":["SHASHI KANT SHARMA","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","33814150094","SBIN0002410",{"NOV-25":[3049,3049,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[2981,2981,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1453":["MANEESH KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","305902010058669","UBIN0530590",{"NOV-25":[6908,6908,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[6495,0,"","","",1,"salary sheet MR URBAN"]}],"MA1447":["MOHIT KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","33336292486","SBIN0003773",{"NOV-25":[15059,15059,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[14012,10581,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1437":["SUDHEER KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122528","UBIN0550311",{"NOV-25":[2647,2647,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2633,0,"","","",1,"salary sheet MR URBAN"]}],"MA1433":["GULSHAN","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","37437813393","SBIN0002410",{"NOV-25":[7022,7022,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[6859,4577,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1427":["HEMANT PRATAP SINGH","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122602","UBIN0550311",{"NOV-25":[8206,8206,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7455,0,"","","",1,"salary sheet MR URBAN"]}],"MA1423":["ARUN KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","30879238894","SBIN0004944",{"NOV-25":[5114,5114,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[4749,3309,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1404":["SHIVAM KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122526","UBIN0550311",{"NOV-25":[6664,6664,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7276,0,"","","",1,"salary sheet MR URBAN"]}],"MA1398":["ANISH AHAMAD","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","574102010009131","UBIN0557412",{"NOV-25":[8150,8150,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[8132,0,"","","",1,"salary sheet MR URBAN"]}],"MA1387":["ATUL KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010057845","UBIN0530590",{"NOV-25":[3515,3515,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3658,0,"","","",1,"salary sheet MR URBAN"]}],"MA1383":["AKSHAY KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","503102010122515","UBIN0550311",{"NOV-25":[3465,3465,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[4116,0,"","","",1,"salary sheet MR URBAN"]}],"MA1382":["ROHIT SINGH","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","574102010008624","UBIN0557412",{"NOV-25":[1623,1623,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[1587,0,"","","",1,"salary sheet MR URBAN"]}],"MA1379":["YOGESH KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","33843917671","SBIN0003773",{"NOV-25":[3622,3622,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[3163,1333,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1153":["SURENDRA KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010058607","UBIN0530590",{"NOV-25":[3061,3061,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2606,0,"","","",1,"salary sheet MR URBAN"]}],"MA1143":["YOGESH KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122604","UBIN0550311",{"NOV-25":[6723,6723,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3508,0,"","","",1,"salary sheet MR URBAN"]}],"MA1128":["LOVEKUSH","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","305902010057824","UBIN0530590",{"NOV-25":[1808,1808,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2092,0,"","","",1,"salary sheet MR URBAN"]}],"MA1072":["ANKIT SHARMA","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122783","UBIN0550311",{"NOV-25":[5654,5654,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[4419,0,"","","",1,"salary sheet MR URBAN"]}],"MA1039":["JITENDRA GAUR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010058618","UBIN0530590",{"NOV-25":[4036,4036,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3718,0,"","","",1,"salary sheet MR URBAN"]}],"MA1036":["MANISH KUMAR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","36099699700","SBIN0002387",{"NOV-25":[9983,9983,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[9186,8444,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA1034":["KRIPANSHU VERMA","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010057876","UBIN0530590",{"NOV-25":[5487,5487,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[5364,0,"","","",1,"salary sheet MR URBAN"]}],"MA1022":["RAJ KUMAR SINGH MAURYA","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122521","UBIN0550311",{"NOV-25":[14973,14973,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7381,0,"","","",1,"salary sheet MR URBAN"]}],"MA0974":["BHOOPENDRA","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902010057853","UBIN0530590",{"NOV-25":[1989,1989,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[1941,0,"","","",1,"salary sheet MR URBAN"]}],"MA0968":["ANIL GAUR","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","305902010057873","UBIN0530590",{"NOV-25":[1628,1628,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[1490,0,"","","",1,"salary sheet MR URBAN"]}],"MA0963":["MOHIT PRATAP SINGH","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","503102010122538","UBIN0550311",{"NOV-25":[3454,3454,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3519,0,"","","",1,"salary sheet MR URBAN"]}],"MA0955":["RAHEESH AHAMAD","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","503102010122506","UBIN0550311",{"NOV-25":[957,957,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[1124,0,"","","",1,"salary sheet MR URBAN"]}],"MA0919":["JAVED KHAN","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","574102010004299","UBIN0557412",{"NOV-25":[1352,1352,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[0,0,"","","",1,"salary sheet MR URBAN"]}],"MA0918":["MOHD ZAMEER AHMAD","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","42895588294","SBIN0000604",{"NOV-25":[2194,2194,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[2053,2053,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA0906":["YOGENDRA KUMAR","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","574102120002550","UBIN0557412",{"NOV-25":[2192,2192,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2050,0,"","","",1,"salary sheet MR URBAN"]}],"MA0905":["RISHI KUMAR SHARMA","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","305902120002661","UBIN0530590",{"NOV-25":[1820,1820,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[1912,0,"","","",1,"salary sheet MR URBAN"]}],"MA0904":["INTKHAB UZZAMA KHAN","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","503102010122580","UBIN0550311",{"NOV-25":[4536,4536,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[4634,0,"","","",1,"salary sheet MR URBAN"]}],"MA0837":["VIJAY SINGH","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","503102010122471","UBIN0550311",{"NOV-25":[3975,3975,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3086,0,"","","",1,"salary sheet MR URBAN"]}],"MA0833":["VISHAL KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122801","UBIN0550311",{"NOV-25":[6422,6422,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[5859,0,"","","",1,"salary sheet MR URBAN"]}],"MA0780":["SAMEER VERMA","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122549","UBIN0550311",{"NOV-25":[5916,5916,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[4975,0,"","","",1,"salary sheet MR URBAN"]}],"MA0777":["YASHPAL SINGH","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","452202010009206","UBIN0545228",{"NOV-25":[7497,7497,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[5984,0,"","","",1,"salary sheet MR URBAN"]}],"MA0759":["SACHIN KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","503102010122552","UBIN0550311",{"NOV-25":[3874,3874,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[3032,0,"","","",1,"salary sheet MR URBAN"]}],"MA0720":["KINTU PRATAP SINGH","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","35779436780","SBIN0016273",{"NOV-25":[1598,1598,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[1227,1227,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA0717":["ARJUN SHEETAL","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","19493211003335","UCBA0001949",{"NOV-25":[4528,4528,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[4005,0,"","","",1,"salary sheet MR URBAN"]}],"MA0709":["DEVENDRA KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","305902010057838","UBIN0530590",{"NOV-25":[3738,3738,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[2877,0,"","","",1,"salary sheet MR URBAN"]}],"MA0670":["SACHIN KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","37885091725","SBIN0000604",{"NOV-25":[3760,3760,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[3711,3711,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA0666":["PAWAN KUMAR SARASWAT","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","305902010057894","UBIN0530590",{"NOV-25":[7278,7278,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7008,0,"","","",1,"salary sheet MR URBAN"]}],"MA0641":["BRAHMA KUMAR GUPTA","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","30379854969","SBIN0001581",{"NOV-25":[7545,7545,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[6618,5043,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA0623":["AMIT KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","305902010058733","UBIN0530590",{"NOV-25":[8074,8074,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR URBAN"],"DEC-25":[7788,0,"","","",1,"salary sheet MR URBAN"]}],"MA0618":["BANTI SINGH CHAUHAN","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","31528058145","SBIN0014208",{"NOV-25":[8168,8168,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"],"DEC-25":[7934,6693,"Success","SBI","Direct credit success",1,"salary sheet MR URBAN"]}],"MA2931":["AVINASH KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","7770001700002029","PUNB0777000",{"NOV-25":[5897,5897,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[3756,0,"","","",1,"salary sheet MR URBAN"]}],"MA3021":["PRAMOD KUMAR","SEMI SKILLED EMP.","EUDD-I ALIGARH","ALIGARH","6199001700270268","PUNB0619900",{"NOV-25":[5464,5464,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[6146,0,"","","",1,"salary sheet MR URBAN"]}],"MA3123":["SHIV SINGH","SEMI SKILLED EMP.","EUDD-III ALIGARH","ALIGARH","503102010122639","UBIN0550311",{"NOV-25":[2032,2032,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR URBAN"],"DEC-25":[2112,0,"","","",1,"salary sheet MR URBAN"]}],"MA3171":["ADHIKAR SINGH","SEMI SKILLED EMP.","EUDD-IV ALIGARH","ALIGARH","32701518055","ICIC0000327",{"NOV-25":[0,0,"","","",1,"salary sheet MR URBAN"],"DEC-25":[5138,0,"","","",1,"salary sheet MR URBAN"]}],"MA3172":["RISHI KAPOOR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","750102010004434","UBIN0575011",{"NOV-25":[0,0,"","","",1,"salary sheet MR URBAN"]}],"MA2817":["VIKASH KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","1594108040632","CNRB0001594",{"NOV-25":[5488,5488,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4048,0,"","","",1,"salary sheet MR RURAL"]}],"MA2799":["AMIR KHAN","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","36011153095","SBIN0002309",{"NOV-25":[3214,3214,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3268,3268,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2798":["SATENDRA KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","4599001700288115","PUNB0459900",{"NOV-25":[2241,2241,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4285,0,"","","",1,"salary sheet MR RURAL"]}],"MA2788":["AKASH SHARMA","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","2145001700127374","PUNB0214500",{"NOV-25":[5075,5075,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8500,0,"","","",1,"salary sheet MR RURAL"]}],"MA2694":["NAVEEN SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","38230484758","SBIN0005334",{"NOV-25":[3698,3698,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5476,5476,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2693":["LOKESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","4942101006021","CNRB0004942",{"NOV-25":[5193,5193,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5638,0,"","","",1,"salary sheet MR RURAL"]}],"MA2692":["ROHITASH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057935","UBIN0530590",{"NOV-25":[5456,5456,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7155,0,"","","",1,"salary sheet MR RURAL"]}],"MA2689":["BRIJESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","305902010057904","UBIN0530590",{"NOV-25":[0,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA2687":["SAMMI KHANNA","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122674","UBIN0550311",{"NOV-25":[7330,7330,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5014,0,"","","",1,"salary sheet MR RURAL"]}],"MA2685":["GOVIND KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","6492001700106309","PUNB0649200",{"NOV-25":[3245,3245,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3235,0,"","","",1,"salary sheet MR RURAL"]}],"MA2683":["RAVI KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","7970000100075242","PUNB0797000",{"NOV-25":[4051,4051,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4731,0,"","","",1,"salary sheet MR RURAL"]}],"MA2622":["VISHAL VERMA","SEMI SKILLED EMP.","EDD TALANAGRI ALIGARH","ALIGARH","503102010122619","UBIN0913570",{"NOV-25":[5636,5636,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[11251,0,"","","",1,"salary sheet MR RURAL"]}],"MA2582":["PRAVIN KUMAR SHARMA","SEMI SKILLED EMP.","EDD SARSOL ALIGARH","ALIGARH","305902010057897","UBIN0530590",{"NOV-25":[3630,3630,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3644,0,"","","",1,"salary sheet MR RURAL"]}],"MA2417":["NARESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","33587499062","SBIN0001027",{"NOV-25":[3069,3069,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2935,2935,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2407":["OMPAL","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014616","UBIN0570362",{"NOV-25":[3033,3033,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[3798,0,"","","",1,"salary sheet MR RURAL"]}],"MA2404":["ASIF","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","26888100017160","BARB0BLYALI",{"NOV-25":[7568,7568,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7809,0,"","","",1,"salary sheet MR RURAL"]}],"MA2400":["MUNEESH KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","18102121020857","PUNB0181010",{"NOV-25":[4028,4028,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[2662,0,"","","",1,"salary sheet MR RURAL"]}],"MA2229":["SONU KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","60448467945","MAHB0001277",{"NOV-25":[5803,5803,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5522,0,"","","",1,"salary sheet MR RURAL"]}],"MA2217":["ABHISEK KASHYAP","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202120001617","UBIN0567825",{"NOV-25":[6925,6925,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5297,0,"","","",1,"salary sheet MR RURAL"]}],"MA2215":["VIVEK SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122628","UBIN0550311",{"NOV-25":[2842,2842,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[1946,0,"","","",1,"salary sheet MR RURAL"]}],"MA2214":["VIJAY PAL SINGH CHAUHAN","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122532","UBIN0550311",{"NOV-25":[3009,3009,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5181,0,"","","",1,"salary sheet MR RURAL"]}],"MA2198":["SHIV KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","305902010057473","UBIN0530590",{"NOV-25":[8416,8416,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8804,0,"","","",1,"salary sheet MR RURAL"]}],"MA2179":["SUNEEL KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","110099168630","CNRB0004296",{"NOV-25":[7867,7867,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8023,0,"","","",1,"salary sheet MR RURAL"]}],"MA2158":["KHELENDRA GUPTA","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","30864758071","SBIN0003773",{"NOV-25":[10640,10640,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[8213,3013,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2148":["VEERESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","305902010057937","UBIN0530590",{"NOV-25":[7992,7992,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6279,0,"","","",1,"salary sheet MR RURAL"]}],"MA2141":["RAKESH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","38980640169","SBIN0006619",{"NOV-25":[1026,1026,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3280,3280,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2140":["MONU UPADHYAY","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010010618","UBIN0567825",{"NOV-25":[3276,3276,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4240,0,"","","",1,"salary sheet MR RURAL"]}],"MA2138":["JITENDRA KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","31324693076","SBIN0001027",{"NOV-25":[5278,5278,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6186,6186,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2136":["JAKIR ALI","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010009910","UBIN0567825",{"NOV-25":[3526,3526,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3746,0,"","","",1,"salary sheet MR RURAL"]}],"MA1612":["SHYAM SUNDAR SHARMA","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","38949195160","SBIN0001027",{"NOV-25":[7635,7635,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[7396,5915,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1610":["RAVISHANKAR SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010010417","UBIN0567825",{"NOV-25":[5496,5496,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[3623,0,"","","",1,"salary sheet MR RURAL"]}],"MA1605":["VIJAY VARDHAN GAUTAM","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","6562000100030308","PUNB0656200",{"NOV-25":[4409,4409,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3164,0,"","","",1,"salary sheet MR RURAL"]}],"MA1603":["KULDEEP KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","35001982021","SBIN0004944",{"NOV-25":[7246,7246,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[8124,5790,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1584":["SANJIV KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","30894207185","SBIN0002324",{"NOV-25":[4873,4873,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5404,5200,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1583":["JALALUDDIN KHAN","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122527","UBIN0550311",{"NOV-25":[7012,7012,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7196,0,"","","",1,"salary sheet MR RURAL"]}],"MA1582":["SHAHRUKH KHAN","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122692","UBIN0550311",{"NOV-25":[4228,4228,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6583,0,"","","",1,"salary sheet MR RURAL"]}],"MA1580":["SATYENDRA KUMAR GAUTAM","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","37775820916","SBIN0001027",{"NOV-25":[10119,10119,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[10875,2833,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1578":["SACHET KUMAR SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010010269","UBIN0567825",{"NOV-25":[6445,6445,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6602,0,"","","",1,"salary sheet MR RURAL"]}],"MA1577":["YOGESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","4046000100175794","PUNB0404600",{"NOV-25":[5528,5528,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6530,0,"","","",1,"salary sheet MR RURAL"]}],"MA1576":["RAM AVATAR SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010057923","UBIN0530590",{"NOV-25":[1526,1526,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[2075,0,"","","",1,"salary sheet MR RURAL"]}],"MA1575":["SATENDRA KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014589","UBIN0570362",{"NOV-25":[12426,12426,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[13858,0,"","","",1,"salary sheet MR RURAL"]}],"MA1567":["MANISH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057875","UBIN0530590",{"NOV-25":[8190,8190,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[11004,0,"","","",1,"salary sheet MR RURAL"]}],"MA1565":["BANTI SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122571","UBIN0550311",{"NOV-25":[11367,11367,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[10810,0,"","","",1,"salary sheet MR RURAL"]}],"MA1556":["BHARAT SINGH","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","8084057609","IDIB000S809",{"NOV-25":[1210,1210,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[844,0,"","","",1,"salary sheet MR RURAL"]}],"MA1554":["YOGENDRA SHARMA","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122508","UBIN0550311",{"NOV-25":[4595,4595,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3298,0,"","","",1,"salary sheet MR RURAL"]}],"MA1549":["MOHD ARMAN","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","41616142545","SBIN0011504",{"NOV-25":[5820,5820,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4999,4999,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1548":["SATISH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","2807001700188044","PUNB0280700",{"NOV-25":[7909,7909,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8398,0,"","","",1,"salary sheet MR RURAL"]}],"MA1542":["CHANDRA SHEKHAR SINGH","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010010585","UBIN0567825",{"NOV-25":[3415,3415,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5992,0,"","","",1,"salary sheet MR RURAL"]}],"MA1535":["MANVEER SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","50333624633","IDIB000B560",{"NOV-25":[2167,2167,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3318,0,"","","",1,"salary sheet MR RURAL"]}],"MA1532":["SATYAPAL SINGH RAGHAV","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","179512010000302","UBIN0817953",{"NOV-25":[4546,4546,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4062,0,"","","",1,"salary sheet MR RURAL"]}],"MA1511":["GYANENDRA KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","38068281924","SBIN0011504",{"NOV-25":[8815,8815,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[11903,11675,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1510":["SANDEEP KUMAR PANDAY","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122668","UBIN0550311",{"NOV-25":[4269,4269,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4124,0,"","","",1,"salary sheet MR RURAL"]}],"MA1506":["VIKAS KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","33327181935","SBIN0011346",{"NOV-25":[2387,2387,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[1470,1470,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1498":["NARESH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","30850918745","SBIN0005334",{"NOV-25":[6349,6349,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[7038,6375,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1497":["DEEPAN KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057900","UBIN0530590",{"NOV-25":[7108,7108,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6514,0,"","","",1,"salary sheet MR RURAL"]}],"MA1489":["RAVINDER KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122503","UBIN0550311",{"NOV-25":[4411,4411,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[2716,0,"","","",1,"salary sheet MR RURAL"]}],"MA1460":["BHIM PRAKASH GAUTAM","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122642","UBIN0550311",{"NOV-25":[6787,6787,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4095,0,"","","",1,"salary sheet MR RURAL"]}],"MA1459":["RAKESH KUMAR VERMA","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014590","UBIN0570362",{"NOV-25":[13666,13666,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[14191,0,"","","",1,"salary sheet MR RURAL"]}],"MA1458":["RAHUL","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122672","UBIN0550311",{"NOV-25":[5794,5794,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5809,0,"","","",1,"salary sheet MR RURAL"]}],"MA1457":["JITENDRA KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010057833","UBIN0530590",{"NOV-25":[5396,5396,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[11732,0,"","","",1,"salary sheet MR RURAL"]}],"MA1456":["CHAMAN FAUJDAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","42528543297","SBIN0000678",{"NOV-25":[1630,1630,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA1455":["GAJENDRA SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010059198","UBIN0530590",{"NOV-25":[9647,9647,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8778,0,"","","",1,"salary sheet MR RURAL"]}],"MA1451":["SANDEEP KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","42034222069","SBIN0011504",{"NOV-25":[7218,7218,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6186,6186,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1448":["AJY KUMAR SHARMA","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","305902010057874","UBIN0530590",{"NOV-25":[8803,8803,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[8344,0,"","","",1,"salary sheet MR RURAL"]}],"MA1445":["JAY PRAKASH","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","2807000100083524","PUNB0280700",{"NOV-25":[8462,8462,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8496,0,"","","",1,"salary sheet MR RURAL"]}],"MA1443":["DHARMENDRA KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014588","UBIN0570362",{"NOV-25":[12180,12180,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[12243,0,"","","",1,"salary sheet MR RURAL"]}],"MA1442":["RAJESH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","6491000100015612","PUNB0649100",{"NOV-25":[9048,9048,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7075,0,"","","",1,"salary sheet MR RURAL"]}],"MA1438":["RISHIPAL SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","38845816084","SBIN0011640",{"NOV-25":[1650,1650,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA1436":["KISHAN KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","42407390291","SBIN0002324",{"NOV-25":[6372,6372,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5840,0,"","","",1,"salary sheet MR RURAL"]}],"MA1435":["DINESH KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122703","UBIN0550311",{"NOV-25":[11757,11757,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[9444,0,"","","",1,"salary sheet MR RURAL"]}],"MA1434":["RAMA SHANKAR SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","34226787588","SBIN0006619",{"NOV-25":[6272,6272,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[7390,7390,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1431":["MANVEER SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122712","UBIN0550311",{"NOV-25":[10595,10595,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[12695,0,"","","",1,"salary sheet MR RURAL"]}],"MA1426":["DINESH CHANDRA","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","37874104784","SBIN0015060",{"NOV-25":[2493,2493,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3464,1818,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1422":["DAYA SHANKAR UPADHYAY","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122516","UBIN0550311",{"NOV-25":[5777,5777,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4391,0,"","","",1,"salary sheet MR RURAL"]}],"MA1420":["LUCKY GAUTAM","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","6946001700018110","PUNB0694600",{"NOV-25":[3121,3121,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3775,0,"","","",1,"salary sheet MR RURAL"]}],"MA1419":["AJAY SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014605","UBIN0570362",{"NOV-25":[2967,2967,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6392,0,"","","",1,"salary sheet MR RURAL"]}],"MA1418":["MONU SHARMA","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122574","UBIN0550311",{"NOV-25":[6479,6479,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5596,0,"","","",1,"salary sheet MR RURAL"]}],"MA1417":["RAHUL KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122582","UBIN0550311",{"NOV-25":[3091,3091,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[3153,0,"","","",1,"salary sheet MR RURAL"]}],"MA1416":["BHOLE SINGH","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","43031347685","SBIN0017572",{"NOV-25":[8860,8860,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[9626,6625,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1415":["ATUL SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122704","UBIN0550311",{"NOV-25":[7844,7844,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7524,0,"","","",1,"salary sheet MR RURAL"]}],"MA1414":["KULADEEP SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","305902010057889","UBIN0530590",{"NOV-25":[7976,7976,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[8593,0,"","","",1,"salary sheet MR RURAL"]}],"MA1412":["VINOD JOHRI","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122932","UBIN0550311",{"NOV-25":[3653,3653,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[1066,0,"","","",1,"salary sheet MR RURAL"]}],"MA1411":["KULDEEP KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","18760110062883","UCBA0001876",{"NOV-25":[8693,8693,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[10011,0,"","","",1,"salary sheet MR RURAL"]}],"MA1410":["RAM JEET","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","6946001700034376","PUNB0694600",{"NOV-25":[7115,7115,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[9492,0,"","","",1,"salary sheet MR RURAL"]}],"MA1409":["ABHISHEK KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014653","UBIN0570362",{"NOV-25":[5024,5024,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7425,0,"","","",1,"salary sheet MR RURAL"]}],"MA1408":["SUBODH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014614","UBIN0570362",{"NOV-25":[4284,4284,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6477,0,"","","",1,"salary sheet MR RURAL"]}],"MA1407":["RAHUL KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","38822165355","SBIN0004942",{"NOV-25":[12393,12393,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[11414,9847,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1397":["VIPIN KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","124510310000211","BARB0BUPGBX",{"NOV-25":[5658,5658,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3817,0,"","","",1,"salary sheet MR RURAL"]}],"MA1395":["SONU KUMAR BAGHEL","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","18760110031476","UCBA0001876",{"NOV-25":[4979,4979,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6108,0,"","","",1,"salary sheet MR RURAL"]}],"MA1394":["KUSHAL PAL SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902120005723","UBIN0530590",{"NOV-25":[5128,5128,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4918,0,"","","",1,"salary sheet MR RURAL"]}],"MA1390":["ARIS MIYAN","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010014613","UBIN0570362",{"NOV-25":[8696,8696,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[8033,0,"","","",1,"salary sheet MR RURAL"]}],"MA1388":["SOHANVIR SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","38589972258","SBIN0002433",{"NOV-25":[2842,2842,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3624,0,"","","",1,"salary sheet MR RURAL"]}],"MA1385":["RAJESH KUMAR VARMA","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122807","UBIN0550311",{"NOV-25":[4618,4618,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[2453,0,"","","",1,"salary sheet MR RURAL"]}],"MA1231":["SATENDRA SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122485","UBIN0550311",{"NOV-25":[4349,4349,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4749,0,"","","",1,"salary sheet MR RURAL"]}],"MA1230":["DEVENDRA KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","36744143334","SBIN0017604",{"NOV-25":[2662,2662,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3481,3481,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1227":["YASHPAL SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","32901990100","SBIN0001027",{"NOV-25":[1100,1100,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[694,694,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1222":["MOHAN SINGH","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122550","UBIN0550311",{"NOV-25":[4454,4454,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5338,0,"","","",1,"salary sheet MR RURAL"]}],"MA1219":["RAHUL KUMAR VERMA","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122917","UBIN0550311",{"NOV-25":[7976,7976,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5501,0,"","","",1,"salary sheet MR RURAL"]}],"MA1217":["RAKESH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","33383859267","SBIN0013160",{"NOV-25":[4941,4941,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6264,5775,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1213":["BRAJESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","2807001700163869","PUNB0280700",{"NOV-25":[9306,9306,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7923,0,"","","",1,"salary sheet MR RURAL"]}],"MA1209":["ASHISH KUMAR SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","923010016866307","UTIB0004845",{"NOV-25":[3846,3846,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3851,0,"","","",1,"salary sheet MR RURAL"]}],"MA1201":["RAVENDRA SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","30383308899","SBIN0002324",{"NOV-25":[5952,5952,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6518,6302,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1193":["NAVEEN KUMAR SHARMA","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122569","UBIN0550311",{"NOV-25":[4427,4427,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5990,0,"","","",1,"salary sheet MR RURAL"]}],"MA1173":["RAVI KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057898","UBIN0530590",{"NOV-25":[1662,1662,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4201,0,"","","",1,"salary sheet MR RURAL"]}],"MA1170":["MADAN KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010057929","UBIN0530590",{"NOV-25":[4521,4521,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4365,0,"","","",1,"salary sheet MR RURAL"]}],"MA1165":["AAS MUHAMMAD","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122787","UBIN0550311",{"NOV-25":[6513,6513,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7549,0,"","","",1,"salary sheet MR RURAL"]}],"MA1162":["SANJAY KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122757","UBIN0550311",{"NOV-25":[6115,6115,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7196,0,"","","",1,"salary sheet MR RURAL"]}],"MA1147":["SHYAM SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","124310410001089","BARB0BUPGBX",{"NOV-25":[2907,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[2553,0,"","","",1,"salary sheet MR RURAL"]}],"MA1145":["SANDEEP VARMA","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","37660244396","SBIN0002326",{"NOV-25":[7264,7264,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[14,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA1142":["KULDEEP KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057915","UBIN0530590",{"NOV-25":[6308,6308,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7583,0,"","","",1,"salary sheet MR RURAL"]}],"MA1122":["PANKAJ KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122681","UBIN0550311",{"NOV-25":[6721,6721,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7782,0,"","","",1,"salary sheet MR RURAL"]}],"MA1114":["AMIT KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122705","UBIN0550311",{"NOV-25":[6557,6557,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7241,0,"","","",1,"salary sheet MR RURAL"]}],"MA1106":["NOOTAN KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122497","UBIN0550311",{"NOV-25":[4536,4536,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4848,0,"","","",1,"salary sheet MR RURAL"]}],"MA1102":["RAKESH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","4303101008626","CNRB0004303",{"NOV-25":[7708,7708,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6033,0,"","","",1,"salary sheet MR RURAL"]}],"MA1100":["VINOD KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","39288100011700","BARB0TALANA",{"NOV-25":[7933,7933,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8913,0,"","","",1,"salary sheet MR RURAL"]}],"MA1092":["JUGENDRA SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122684","UBIN0550311",{"NOV-25":[7705,7705,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[8301,0,"","","",1,"salary sheet MR RURAL"]}],"MA1090":["SAGAR NISHAD","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","37364661135","SBIN0018790",{"NOV-25":[0,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA1074":["RAMPRAKASH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122630","UBIN0550311",{"NOV-25":[16546,16546,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[18481,0,"","","",1,"salary sheet MR RURAL"]}],"MA1073":["BITTU KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","123210110001449","BARB0BUPGBX",{"NOV-25":[6957,6957,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6685,0,"","","",1,"salary sheet MR RURAL"]}],"MA1060":["CHAMAN SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122487","UBIN0550311",{"NOV-25":[3668,3668,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4560,0,"","","",1,"salary sheet MR RURAL"]}],"MA1058":["VIMAL KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122490","UBIN0550311",{"NOV-25":[8097,8097,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[10107,0,"","","",1,"salary sheet MR RURAL"]}],"MA1056":["ZUBAIR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","168210100106453","UBIN0545228",{"NOV-25":[1920,1920,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[1263,0,"","","",1,"salary sheet MR RURAL"]}],"MA1055":["RAHUL KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","38230485106","SBIN0005334",{"NOV-25":[666,666,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA1053":["LALIT KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","574102010009105","UBIN0557412",{"NOV-25":[6759,6759,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7615,0,"","","",1,"salary sheet MR RURAL"]}],"MA1045":["PANKAJ KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","33487461429","SBIN0013160",{"NOV-25":[4586,4586,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4189,4189,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1044":["GAJENDRA SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","11471175348","SBIN0002324",{"NOV-25":[7469,7469,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6939,6939,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA1043":["ASIPH ALI","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","4305108000562","CNRB0004305",{"NOV-25":[2972,2972,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4806,0,"","","",1,"salary sheet MR RURAL"]}],"MA1035":["FAKRUDDIN","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122540","UBIN0550311",{"NOV-25":[9074,9074,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6555,0,"","","",1,"salary sheet MR RURAL"]}],"MA1023":["ANURAG SHARMA","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","305902010057872","UBIN0530590",{"NOV-25":[7809,7809,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[9509,0,"","","",1,"salary sheet MR RURAL"]}],"MA1004":["BITTU KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","36094986824","SBIN0002387",{"NOV-25":[4835,4835,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5557,5209,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0969":["DURGESH CHAUDHARY","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122694","UBIN0550311",{"NOV-25":[10243,10243,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7696,0,"","","",1,"salary sheet MR RURAL"]}],"MA0967":["ONKAR SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122495","UBIN0550311",{"NOV-25":[6440,6440,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7913,0,"","","",1,"salary sheet MR RURAL"]}],"MA0962":["VIVEK KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","41525209615","SBIN0011503",{"NOV-25":[1256,1256,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2011,2011,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0961":["VISHNU KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122589","UBIN0550311",{"NOV-25":[11820,11820,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[11518,0,"","","",1,"salary sheet MR RURAL"]}],"MA0960":["ASHOK KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","385502011011233","UBIN0538558",{"NOV-25":[3661,3661,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5115,0,"","","",1,"salary sheet MR RURAL"]}],"MA0958":["MANOJ KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","305902010059235","UBIN0530590",{"NOV-25":[6565,6565,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6592,0,"","","",1,"salary sheet MR RURAL"]}],"MA0956":["DEVDATT SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","305902010057928","UBIN0530590",{"NOV-25":[5959,5959,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6766,0,"","","",1,"salary sheet MR RURAL"]}],"MA0952":["YASH KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","34281727500","SBIN0003773",{"NOV-25":[6643,6643,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6501,4827,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0949":["RIHAN KHAN","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122585","UBIN0550311",{"NOV-25":[6347,6347,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4001,0,"","","",1,"salary sheet MR RURAL"]}],"MA0945":["TALEVAR SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","30434642919","SBIN0011503",{"NOV-25":[4205,4205,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4634,4634,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0944":["LALTA PRASAD","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","11826097059","SBIN0005334",{"NOV-25":[4211,4211,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5612,4603,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0943":["SUMIT KUMAR PUNDHIR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","36080885298","SBIN0005334",{"NOV-25":[5658,5658,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[9421,8654,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0940":["PRADEEP KUMAR YADAV","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122600","UBIN0550311",{"NOV-25":[6313,6313,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4903,0,"","","",1,"salary sheet MR RURAL"]}],"MA0936":["RISHIPAL SINGH","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","37178770304","SBIN0011503",{"NOV-25":[6496,6496,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[7412,6157,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0935":["TEJVEER","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","36712312518","SBIN0013507",{"NOV-25":[3663,3663,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4337,4337,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0927":["RAJA BABU SHARMA","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010123375","UBIN0550311",{"NOV-25":[5764,5764,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[6774,0,"","","",1,"salary sheet MR RURAL"]}],"MA0924":["HUKUM CHAND","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122483","UBIN0550311",{"NOV-25":[5218,5218,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5518,0,"","","",1,"salary sheet MR RURAL"]}],"MA0921":["MUNESH PRATAP","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902010059220","UBIN0530590",{"NOV-25":[11295,11295,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[11999,0,"","","",1,"salary sheet MR RURAL"]}],"MA0920":["AJAY KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","503102010122523","UBIN0550311",{"NOV-25":[7283,7283,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7629,0,"","","",1,"salary sheet MR RURAL"]}],"MA0912":["ARUN PRATAP SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","85780100020381","BARB0DBLODH",{"NOV-25":[4505,4505,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5142,0,"","","",1,"salary sheet MR RURAL"]}],"MA0911":["GAJENDRA SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122499","UBIN0550311",{"NOV-25":[5883,5883,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7641,0,"","","",1,"salary sheet MR RURAL"]}],"MA0898":["SHIVAM KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902010058603","UBIN0530590",{"NOV-25":[9477,9477,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[9392,0,"","","",1,"salary sheet MR RURAL"]}],"MA0894":["RAJESH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122677","UBIN0550311",{"NOV-25":[4743,4743,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7237,0,"","","",1,"salary sheet MR RURAL"]}],"MA0893":["RAJESH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122786","UBIN0550311",{"NOV-25":[6187,6187,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[7554,0,"","","",1,"salary sheet MR RURAL"]}],"MA0892":["MANOJ KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","35766367572","SBIN0001027",{"NOV-25":[4020,4020,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[1757,1757,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0890":["LALIT KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","245101039735","CNRB0000245",{"NOV-25":[4896,4896,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5686,0,"","","",1,"salary sheet MR RURAL"]}],"MA0887":["NARAYAN PACHAURI","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010002237","UBIN0567825",{"NOV-25":[2288,2288,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[2992,0,"","","",1,"salary sheet MR RURAL"]}],"MA0883":["OMPAL SINGH","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122556","UBIN0550311",{"NOV-25":[9884,9884,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[11405,0,"","","",1,"salary sheet MR RURAL"]}],"MA0877":["HARISH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122675","UBIN0550311",{"NOV-25":[4170,4170,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA0873":["SHUBHAM KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122603","UBIN0550311",{"NOV-25":[12263,12263,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[12538,0,"","","",1,"salary sheet MR RURAL"]}],"MA0868":["PUSHPENDRA SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902010057924","UBIN0530590",{"NOV-25":[4691,4691,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4231,0,"","","",1,"salary sheet MR RURAL"]}],"MA0866":["KRISHAN KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","6946001700012912","PUNB0694600",{"NOV-25":[3990,3990,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4004,0,"","","",1,"salary sheet MR RURAL"]}],"MA0865":["DINESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","37695891955","SBIN0002326",{"NOV-25":[10294,10294,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5713,5630,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0863":["ROOP SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122592","UBIN0550311",{"NOV-25":[4924,4924,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5933,0,"","","",1,"salary sheet MR RURAL"]}],"MA0862":["VIJENDRA KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","35873571084","SBIN0018577",{"NOV-25":[7222,7222,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[6710,5538,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0858":["BRIJESH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902010058621","UBIN0530590",{"NOV-25":[7832,7832,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[10942,0,"","","",1,"salary sheet MR RURAL"]}],"MA0856":["NIRESH CHAUDHARY","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","50100583810822","HDFC0004040",{"NOV-25":[7705,7705,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[11693,0,"","","",1,"salary sheet MR RURAL"]}],"MA0852":["MANISH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122790","UBIN0550311",{"NOV-25":[6168,6168,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[10250,0,"","","",1,"salary sheet MR RURAL"]}],"MA0851":["SUNEEL KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","4046001700032212","PUNB0404600",{"NOV-25":[3513,3513,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[838,0,"","","",1,"salary sheet MR RURAL"]}],"MA0849":["RAHUL KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","21620100070021","BARB0SASNIG",{"NOV-25":[6849,6849,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7190,0,"","","",1,"salary sheet MR RURAL"]}],"MA0848":["SAMEER","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122618","UBIN0550311",{"NOV-25":[9139,9139,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4936,0,"","","",1,"salary sheet MR RURAL"]}],"MA0843":["NEERAJ KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","503102010122577","UBIN0550311",{"NOV-25":[13097,13097,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[4378,0,"","","",1,"salary sheet MR RURAL"]}],"MA0842":["ASHISH KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","6490001700049648","PUNB0649000",{"NOV-25":[9956,9956,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6401,0,"","","",1,"salary sheet MR RURAL"]}],"MA0841":["AMIT VERMA","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","36954363430","SBIN0015368",{"NOV-25":[8186,8186,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[7572,5193,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0840":["ROHIT KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","50100355703592","HDFC0003197",{"NOV-25":[5523,5523,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6133,0,"","","",1,"salary sheet MR RURAL"]}],"MA0839":["ANWAR KHAN","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","570000100258578","PUNB0057000",{"NOV-25":[3596,3596,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[3358,0,"","","",1,"salary sheet MR RURAL"]}],"MA0825":["KAUSHAL KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010123025","UBIN0550311",{"NOV-25":[10893,10893,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[8845,0,"","","",1,"salary sheet MR RURAL"]}],"MA0810":["ASHOK KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","2692121018071","PUNB0026910",{"NOV-25":[8018,8018,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5776,0,"","","",1,"salary sheet MR RURAL"]}],"MA0808":["AMIT KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","305902010057902","UBIN0530590",{"NOV-25":[5031,5031,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4755,0,"","","",1,"salary sheet MR RURAL"]}],"MA0801":["ANSHUL SINGH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","179512010001140","UBIN0817953",{"NOV-25":[5250,5250,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[1626,0,"","","",1,"salary sheet MR RURAL"]}],"MA0797":["PRASHANT","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","39021400439","SBIN0013160",{"NOV-25":[4147,4147,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5269,2911,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0791":["AKHLESH KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122510","UBIN0570362",{"NOV-25":[1262,1262,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[1279,0,"","","",1,"salary sheet MR RURAL"]}],"MA0790":["MARUTI NANDAN","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","32626180609","SBIN0001027",{"NOV-25":[2696,2696,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3540,1350,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA0787":["ASHOK KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","2692121017432","PUNB0026910",{"NOV-25":[4215,4215,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA0775":["RAHUL KUMAR CHAUHAN","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010057864","UBIN0530590",{"NOV-25":[8825,8825,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6418,0,"","","",1,"salary sheet MR RURAL"]}],"MA0773":["UMESH KUMAR SAGAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122566","UBIN0550311",{"NOV-25":[6941,6941,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[9098,0,"","","",1,"salary sheet MR RURAL"]}],"MA0741":["RAHUL KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","179512010000406","UBIN0817953",{"NOV-25":[938,938,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[2047,0,"","","",1,"salary sheet MR RURAL"]}],"MA0737":["VIPIN KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","703602010013660","UBIN0570362",{"NOV-25":[11568,11568,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[12711,0,"","","",1,"salary sheet MR RURAL"]}],"MA0730":["SONU KUMAR","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122562","UBIN0550311",{"NOV-25":[5740,5740,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[5551,0,"","","",1,"salary sheet MR RURAL"]}],"MA0725":["VIKRAM JADAUN","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","503102010122553","UBIN0550311",{"NOV-25":[9401,9401,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[9455,0,"","","",1,"salary sheet MR RURAL"]}],"MA0719":["SUMIT CHAUHAN","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","503102010122617","UBIN0550311",{"NOV-25":[7658,7658,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[8579,0,"","","",1,"salary sheet MR RURAL"]}],"MA0703":["PANKAJ PACHORI","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","3685108000823","CNRB0003685",{"NOV-25":[4864,4864,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6365,0,"","","",1,"salary sheet MR RURAL"]}],"MA0697":["KAPIL SARASWAT","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","39089478769","SBIN0002387",{"NOV-25":[6446,6446,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[8619,0,"","","",1,"salary sheet MR RURAL"]}],"MA0691":["HIMANSHU SHARMA","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","44612961463","SBIN0001027",{"NOV-25":[9627,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[10101,0,"","","",1,"salary sheet MR RURAL"]}],"MA0689":["VIKASH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","503102010122486","UBIN0530590",{"NOV-25":[2744,2744,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[3473,0,"","","",1,"salary sheet MR RURAL"]}],"MA0681":["SRINIVAS VERMA","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","4283101002205","CNRB0004283",{"NOV-25":[3396,3396,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[4302,0,"","","",1,"salary sheet MR RURAL"]}],"MA2932":["MUNENDRA KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","36873052584","SBIN0018577",{"NOV-25":[3084,3084,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2766,2766,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2934":["LALIT KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","574102120005984","UBIN0557412",{"NOV-25":[5257,5257,"Fund Settled","NEFT","Fund settled by RBI",1,"salary sheet MR RURAL"],"DEC-25":[5858,0,"","","",1,"salary sheet MR RURAL"]}],"MA2937":["SANDEEP KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","67334911246","SBIN0070699",{"NOV-25":[6320,6320,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5857,5772,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA2938":["PRAMOD KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","1894101019862","CNRB0001894",{"NOV-25":[6487,6487,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7596,0,"","","",1,"salary sheet MR RURAL"]}],"MA2976":["RAM GOPAL","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","110066887194","CNRB0005093",{"NOV-25":[5636,5636,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[6431,0,"","","",1,"salary sheet MR RURAL"]}],"MA3023":["NAITIK VERMA","SEMI SKILLED EMP.","EDD-IV IGLASH","ALIGARH","50100405761033","HDFC0000394",{"NOV-25":[3053,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[2224,0,"","","",1,"salary sheet MR RURAL"]}],"MA3025":["ASHOK KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","10056172007","IPOS0000DOP",{"NOV-25":[6902,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[5120,0,"","","",1,"salary sheet MR RURAL"]}],"MA3026":["SUNIL KUMAR","SEMI SKILLED EMP.","EDD-IV IGLASH","ALIGARH","36422121124","SBIN0006619",{"NOV-25":[2346,2346,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2355,2355,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3031":["SAMARJIT SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","32321492003","SBIN0006618",{"NOV-25":[6504,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[6995,0,"","","",1,"salary sheet MR RURAL"]}],"MA3032":["DINESH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLASH","ALIGARH","678202010010423","UBIN0567825",{"NOV-25":[2134,2134,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[219,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA3088":["YOGESH KUMAR","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","44236287567","SBIN0001364",{"NOV-25":[2427,2427,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA3089":["LAVKUSH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","34943018469","SBIN0006618",{"NOV-25":[3975,3975,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[4769,4602,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3092":["SACHIN CHAUHAN","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","43920928749","SBIN0002324",{"NOV-25":[5304,5304,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[5987,5987,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3095":["ABDHESH KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","20213868262","SBIN0000604",{"NOV-25":[2668,2668,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2861,2861,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3097":["HARSH KUMAR","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","6199001700263666","PUNB0619900",{"NOV-25":[4799,4799,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[7395,0,"","","",1,"salary sheet MR RURAL"]}],"MA3102":["DUSHYANT SINGH CHAUHAN","SEMI SKILLED EMP.","EDD-III ALIGARH","ALIGARH","10350100032460","BARB0ETAHXX",{"NOV-25":[2071,2071,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[1586,0,"","","",1,"salary sheet MR RURAL"]}],"MA3111":["VINEET PRATAP SINGH","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","26000100032698","BARB0BLYALI",{"NOV-25":[3040,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[104,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA3159":["GUDDU CHAUDHARY","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","43880526869","SBIN0003195",{"NOV-25":[646,646,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[3405,3405,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3168":["DANISH ALI","SEMI SKILLED EMP.","EDD-V KHAIR ALIGARH","ALIGARH","38730190544","SBIN0011503",{"NOV-25":[1195,1195,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"],"DEC-25":[2133,2133,"Success","SBI","Direct credit success",1,"salary sheet MR RURAL"]}],"MA3185":["BHARAT SHARMA","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","290101036198","CNRB0000290",{"NOV-25":[0,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[6684,0,"","","",1,"salary sheet MR RURAL"]}],"MA3196":["MANEESH SHARMA","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","35129536264","SBIN0003773",{"NOV-25":[0,0,"","","",1,"salary sheet MR RURAL"],"DEC-25":[6487,0,"","","",1,"salary sheet MR RURAL"]}],"MA1406":["RAHUL SHARMA","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","678202010010459","UBIN0567825",{"NOV-25":[2304,2304,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[2709,0,"","","",1,"salary sheet MR RURAL"]}],"MA1591":["VISHNU KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","110074432365","CNRB0019263",{"NOV-25":[1460,1460,"Credited","NEFT","Credited to beneficiary",1,"salary sheet MR RURAL"],"DEC-25":[1652,0,"","","",1,"salary sheet MR RURAL"]}],"MA1059":["VIKAS KUMAR","SEMI SKILLED EMP.","EUDD-II ALIGARH","ALIGARH","2976108001805","CNRB0002976",{"NOV-25":[100,0,"","","",0,"salary sheet MR URBAN NOT PAID"],"DEC-25":[0,0,"","","",1,"salary sheet MR URBAN"]}],"MA1439":["SATISH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","32583821684","SBIN0006618",{"NOV-25":[25,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA1159":["DINESH CHANDRA","SEMI SKILLED EMP.","EDD-I ALIGARH","ALIGARH","33850341448","SBIN0003773",{"NOV-25":[375,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA0966":["ANIL KUMAR","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","2692121009789","PUNB0026910",{"NOV-25":[260,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"MA0957":["JAVED KHAN","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","503102010122784","UBIN0550311",{"NOV-25":[4,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[179,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA0939":["AKHILESH KUMAR","SEMI SKILLED EMP.","EDD-VI ALIGARH","ALIGARH","2149836236","KKBK0005339",{"NOV-25":[95,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[232,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA0760":["SHAHAVASH","SEMI SKILLED EMP.","EDD-II ALIGARH","ALIGARH","305902010057830","UBIN0530590",{"NOV-25":[119,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[415,0,"","","",0,"salary sheet MR RURAL NOT PAID"]}],"MA3117":["PAVAN KUMAR","SEMI SKILLED EMP.","EDD-IV IGLAS","ALIGARH","31426149889","SBIN0013169",{"NOV-25":[8,0,"","","",0,"salary sheet MR RURAL NOT PAID"],"DEC-25":[0,0,"","","",1,"salary sheet MR RURAL"]}],"AL649":["SAHIL KHAN","EXECUTIVE","EDC-II ALIGARH","ALIGARH","33870100002194","BARB0AGRUNI",{"DEC-25":[13783,0,"","","",1,"saalry sheet staff"]}]};
+
+// PDF.js worker setup
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const MONTH_ORDER=['NOV-25','DEC-25','JAN-26','FEB-26','MAR-26','APR-26','MAY-26','JUN-26','JUL-26','AUG-26','SEP-26','OCT-26'];
+const MONTH_MAP=[
+  [/NOV.{0,3}(25|2025)/i,'NOV-25'],[/DEC.{0,3}(25|2025)/i,'DEC-25'],
+  [/JAN.{0,3}(26|2026)/i,'JAN-26'],[/FEB.{0,3}(26|2026)/i,'FEB-26'],
+  [/MAR.{0,3}(26|2026)/i,'MAR-26'],[/APR.{0,3}(26|2026)/i,'APR-26'],
+  [/MAY.{0,3}(26|2026)/i,'MAY-26'],[/JUN.{0,3}(26|2026)/i,'JUN-26'],
+  [/JUL.{0,3}(26|2026)/i,'JUL-26'],[/AUG.{0,3}(26|2026)/i,'AUG-26'],
+  [/SEP.{0,3}(26|2026)/i,'SEP-26'],[/OCT.{0,3}(26|2026)/i,'OCT-26'],
+];
+const ZONE_MAP=[['ALIGARH','ALIGARH'],['ETAH','ETAH'],['MATHURA','MATHURA'],['KANPUR','KANPUR'],['AGRA','AGRA'],['BAREILLY','BAREILLY'],['MEERUT','MEERUT'],['VARANASI','VARANASI']];
+const SALARY_SHEETS={'saalry sheet staff':true,'salary sheet MR URBAN':true,'salary sheet MR RURAL':true,'salary sheet MR URBAN NOT PAID':false,'salary sheet MR RURAL NOT PAID':false};
+
+function detectMonth(fname){for(const [re,m] of MONTH_MAP)if(re.test(fname))return m;return null;}
+function detectZone(fname){const fu=fname.toUpperCase();for(const [kw,z] of ZONE_MAP)if(fu.indexOf(kw)>=0)return z;return null;}
+
+const pending={xl:[],pdf:[]};
+
+function switchTab(t){
+  document.querySelectorAll('.up-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.up-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('pane-'+t).classList.add('active');
+}
+function dzOver(e,t){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function dzLeave(t){document.querySelectorAll('.drop-zone').forEach(d=>d.classList.remove('drag-over'));}
+function dzDrop(e,t){e.preventDefault();dzLeave(t);addFiles(t,[...e.dataTransfer.files]);}
+function filesChosen(t){addFiles(t,[...document.getElementById('up-'+t).files]);document.getElementById('up-'+t).value='';}
+function addFiles(t,files){
+  files.forEach(f=>{if(!pending[t].find(x=>x.name===f.name))pending[t].push(f);});
+  renderFL(t);
+}
+function removeFile(t,name){
+  pending[t]=pending[t].filter(f=>f.name!==name);renderFL(t);
+}
+function renderFL(t){
+  const ul=document.getElementById('fl-'+t);
+  if(!pending[t].length){ul.innerHTML='';return;}
+  ul.innerHTML=pending[t].map(f=>{
+    const m=detectMonth(f.name),z=detectZone(f.name);
+    const b=(m&&z)?'<span class="fbadge fb-ok">'+m+' \u00B7 '+z+'</span>':
+      m?'<span class="fbadge fb-warn">'+m+' \u00B7 Zone?</span>':
+      '<span class="fbadge fb-warn">Month?</span>';
+    const safeName=f.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return'<div class="file-item">'+b+'<span class="fname" title="'+f.name+'">'+f.name+'</span>'+
+      '<button class="frem" onclick="removeFile(\''+t+'\',\''+safeName+'\')">&#215;</button></div>';
+  }).join('');
+}
+
+// ── EXCEL PROCESSING ──────────────────────────────────────────────
+function processExcel(){
+  if(!pending.xl.length){alert('No Excel files selected');return;}
+  const log=document.getElementById('log-xl');
+  const btn=document.getElementById('btn-xl');
+  const pb=document.getElementById('pb-xl');
+  const pf=document.getElementById('pf-xl');
+  log.style.display='block';log.textContent='';
+  pb.style.display='block';btn.disabled=true;
+  let done=0;
+  const total=pending.xl.length;
+  function tick(){
+    done++;
+    pf.style.width=Math.round(done/total*100)+'%';
+    if(done===total){
+      btn.disabled=false;pb.style.display='none';
+      pending.xl=[];renderFL('xl');
+      updateStats();
+      const q=document.getElementById('srch').value.trim().toUpperCase();
+      if(q&&DB[q])showEmployee(q);
+    }
+  }
+  pending.xl.forEach(function(file){
+    const month=detectMonth(file.name);
+    const zone=detectZone(file.name)||'ALIGARH';
+    if(!month){log.textContent+='\u26A0 '+file.name+': Month not detected - skipped\n';tick();return;}
+    const reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        const wb=XLSX.read(e.target.result,{type:'binary'});
+        let loaded=0,newEmp=0;
+        Object.entries(SALARY_SHEETS).forEach(function(entry){
+          const sn=entry[0],isPaid=entry[1];
+          if(!wb.SheetNames.includes(sn))return;
+          const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+          if(rows.length<3)return;
+          const hdrs=rows[1];
+          let nc=null;
+          hdrs.forEach(function(h,i){
+            if(h&&(String(h).toUpperCase().indexOf('NET PAYEBLE')>=0||String(h).toUpperCase().indexOf('NET PAYABLE')>=0))nc=i;
+          });
+          for(let ri=2;ri<rows.length;ri++){
+            const row=rows[ri];
+            const code=String(row[2]||'').trim();
+            if(!code||code==='undefined')continue;
+            const net=parseFloat(row[nc])||0;
+            const name=String(row[6]||'').trim();
+            if(!name)continue;
+            const desg=String(row[15]||'').trim();
+            const div=String(row[20]||'').trim();
+            let acc='';try{const v=row[21];acc=v?(isNaN(v)?String(v).trim():String(Math.round(v))):'';}catch(ex){}
+            const ifsc=String(row[22]||'').trim();
+            if(!DB[code]){DB[code]=[name,desg,div,zone,acc,ifsc,{}];newEmp++;}
+            else{if(!DB[code][4])DB[code][4]=acc;if(!DB[code][5])DB[code][5]=ifsc;}
+            if(!DB[code][6][month])DB[code][6][month]=[net,0,'','','',isPaid?1:0,sn];
+            else{DB[code][6][month][0]=net;DB[code][6][month][5]=isPaid?1:0;DB[code][6][month][6]=sn;}
+            loaded++;
+          }
+        });
+        log.textContent+='\u2713 '+file.name+'\n  \u2192 '+month+' | '+zone+' | '+loaded+' records | '+newEmp+' new\n';
+      }catch(err){log.textContent+='\u2717 '+file.name+': '+err.message+'\n';}
+      tick();
+    };
+    reader.readAsBinaryString(file);
+  });
+}
+
+// ── PDF PROCESSING (PDF.js proper text extraction) ────────────────
+async function extractPDFText(file){
+  const arrayBuffer=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  let fullText='';
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const content=await page.getTextContent();
+    const pageText=content.items.map(function(item){return item.str;}).join(' ');
+    fullText+=pageText+'\n';
+  }
+  return fullText;
+}
+
+function parsePDFText(text,month,mode){
+  const payments={};
+  // PDF.js may add spaces: "AL205 /Name" or "AL205/Name" - handle both
+  // Also search in full text joined, not just line by line
+  const lines=text.split('\n');
+  // Method 1: line-by-line with flexible slash match
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    // Code optionally followed by space then slash
+    const codeMatch=line.match(/\b((?:AL|MA|TE|AI|AJ)\d{3,5})\s*\//);
+    if(!codeMatch)continue;
+    const code=codeMatch[1];
+    let amt=0;
+    for(let j=i;j<Math.min(i+5,lines.length);j++){
+      const nums=lines[j].match(/\b(\d{4,7}(?:\.\d{2})?)\b/g)||[];
+      for(const n of nums){
+        const v=parseFloat(n);
+        if(v>=100&&v<=999999){amt=Math.round(v);break;}
+      }
+      if(amt)break;
+    }
+    if(!amt)continue;
+    const ctx=lines.slice(Math.max(0,i-1),Math.min(lines.length,i+7)).join(' ').toLowerCase();
+    let status='Credited';
+    if(ctx.indexOf('success')>=0)status='Success';
+    else if(ctx.indexOf('returned')>=0||ctx.indexOf('ifsc')>=0)status='Returned';
+    else if(ctx.indexOf('fund settled')>=0)status='Fund Settled';
+    else if(ctx.indexOf('credited')>=0)status='Credited';
+    if(!payments[code]||payments[code].paid===0)
+      payments[code]={paid:amt,status:status,mode:mode};
+  }
+  return payments;
+}
+
+function getRemarkStr(s){
+  if(!s)return'';
+  if(s==='Success')return'Direct credit success';
+  if(s==='Credited')return'Credited to beneficiary';
+  if(s.indexOf('Fund')>=0)return'Fund settled by RBI';
+  if(s==='Returned')return'IFSC invalid - returned';
+  return s;
+}
+
+function injectPayments(pays,month){
+  let matched=0,missed=0;
+  Object.entries(pays).forEach(function(entry){
+    const code=entry[0],p=entry[1];
+    if(DB[code]){
+      if(!DB[code][6][month])DB[code][6][month]=[0,p.paid,p.status,p.mode,getRemarkStr(p.status),1,''];
+      else{
+        DB[code][6][month][1]=p.paid;
+        DB[code][6][month][2]=p.status;
+        DB[code][6][month][3]=p.mode;
+        DB[code][6][month][4]=getRemarkStr(p.status);
+      }
+      matched++;
+    }else{missed++;}
+  });
+  return{matched:matched,missed:missed};
+}
+
+async function processPDFs(){
+  if(!pending.pdf.length){alert('No PDF files selected');return;}
+  const log=document.getElementById('log-pdf');
+  const btn=document.getElementById('btn-pdf');
+  const pb=document.getElementById('pb-pdf');
+  const pf=document.getElementById('pf-pdf');
+  log.style.display='block';log.textContent='Processing PDFs using PDF.js...\n';
+  pb.style.display='block';btn.disabled=true;
+  const total=pending.pdf.length;
+  let done=0;
+
+  for(const file of pending.pdf){
+    const month=detectMonth(file.name);
+    const zone=detectZone(file.name)||'ALIGARH';
+    const mode=file.name.toUpperCase().indexOf('NEFT')>=0?'NEFT':'SBI';
+    if(!month){
+      log.textContent+='\u26A0 '+file.name+': Month not detected - skipped\n';
+      done++;pf.style.width=Math.round(done/total*100)+'%';
+      continue;
+    }
+    try{
+      log.textContent+='Reading '+file.name+'...\n';
+      const text=await extractPDFText(file);
+      const pays=parsePDFText(text,month,mode);
+      const result=injectPayments(pays,month);
+      log.textContent+='\u2713 '+file.name+'\n  \u2192 '+month+' | '+mode+' | '+Object.keys(pays).length+' found | '+result.matched+' matched | '+result.missed+' not in DB\n';
+    }catch(err){
+      log.textContent+='\u2717 '+file.name+': '+err.message+'\n';
+    }
+    done++;pf.style.width=Math.round(done/total*100)+'%';
+  }
+
+  btn.disabled=false;pb.style.display='none';
+  pending.pdf=[];renderFL('pdf');
+  updateStats();
+  const q=document.getElementById('srch').value.trim().toUpperCase();
+  if(q&&DB[q])showEmployee(q);
+}
+
+
+// ── CSV PAYMENT PROCESSING ────────────────────────────────────────
+pending.csv=[];
+
+function processCSV(){
+  if(!pending.csv.length){alert('No CSV files selected');return;}
+  const log=document.getElementById('log-csv');
+  const btn=document.getElementById('btn-csv');
+  log.style.display='block';log.textContent='';
+  btn.disabled=true;
+  let done=0;
+  pending.csv.forEach(function(file){
+    const defaultMonth=detectMonth(file.name)||null;
+    const reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        const text=e.target.result;
+        const rows=text.split('\n').map(function(r){return r.trim();}).filter(Boolean);
+        if(!rows.length){log.textContent+='\u26A0 '+file.name+': Empty file\n';done++;if(done===pending.csv.length){btn.disabled=false;updateStats();}return;}
+        // Parse header
+        const sep=rows[0].indexOf('\t')>=0?'\t':',';
+        const hdrs=rows[0].split(sep).map(function(h){return h.trim().replace(/"/g,'').toUpperCase();});
+        const ci=function(name){return hdrs.findIndex(function(h){return h.indexOf(name)>=0;});};
+        const cCode=ci('EMP_CODE');const cAmt=ci('PAID_AMOUNT');const cStatus=ci('STATUS');
+        const cMonth=ci('MONTH');const cMode=ci('MODE');
+        if(cCode<0||cAmt<0){log.textContent+='\u2717 '+file.name+': Missing EMP_CODE or PAID_AMOUNT column\n';done++;return;}
+        let matched=0,missed=0,total=0;
+        for(let ri=1;ri<rows.length;ri++){
+          const cells=rows[ri].split(sep).map(function(c){return c.trim().replace(/"/g,'');});
+          const code=cells[cCode]||'';
+          const amt=parseFloat(cells[cAmt])||0;
+          if(!code||!amt)continue;
+          const month=(cMonth>=0&&cells[cMonth]?cells[cMonth]:defaultMonth)||'UNK';
+          const status=cStatus>=0?cells[cStatus]:'Success';
+          const mode=cMode>=0?cells[cMode]:'SBI';
+          total++;
+          if(DB[code]){
+            if(!DB[code][6][month])DB[code][6][month]=[0,amt,status,mode,getRemarkStr(status),1,'CSV'];
+            else{DB[code][6][month][1]=amt;DB[code][6][month][2]=status;DB[code][6][month][3]=mode;DB[code][6][month][4]=getRemarkStr(status);}
+            matched++;
+          }else{missed++;}
+        }
+        log.textContent+='\u2713 '+file.name+'\n  \u2192 '+total+' rows | '+matched+' matched | '+missed+' not in DB\n';
+      }catch(err){log.textContent+='\u2717 '+file.name+': '+err.message+'\n';}
+      done++;
+      if(done===pending.csv.length){btn.disabled=false;pending.csv=[];renderFL('csv');updateStats();
+        const q=document.getElementById('srch').value.trim().toUpperCase();if(q&&DB[q])showEmployee(q);}
+    };
+    reader.readAsText(file);
+  });
+}
+
+// ── STATS ─────────────────────────────────────────────────────────
+function updateStats(){
+  const total=Object.keys(DB).filter(function(k){return isMR(k);}).length;
+  const months=new Set(),zones=new Set();
+  let pdfRecs=0;
+  Object.values(DB).forEach(function(d){
+    zones.add(d[3]);
+    Object.entries(d[6]).forEach(function(entry){
+      months.add(entry[0]);if(entry[1][1]>0)pdfRecs++;
+    });
+  });
+  document.getElementById('st-emp').textContent=total;
+  document.getElementById('st-months').textContent=months.size;
+  document.getElementById('st-pdf').textContent=pdfRecs;
+  document.getElementById('st-zones').textContent=zones.size;
+  document.getElementById('badge-emp').textContent=total+' employees';
+  const sortedM=MONTH_ORDER.filter(function(m){return months.has(m);});
+  document.getElementById('badge-months').textContent=sortedM.join(', ')||'--';
+  const msel=document.getElementById('f-month');
+  const cur=msel.value;
+  msel.innerHTML='<option value="">All Months</option>'+sortedM.map(function(m){return'<option value="'+m+'">'+m+'</option>';}).join('');
+  if(cur)msel.value=cur;
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────
+const inp=document.getElementById('srch');
+const sbox=document.getElementById('suggest');
+function isMR(code){
+  const d=DB[code];if(!d)return false;
+  return Object.values(d[6]).some(function(mv){return mv[6]&&mv[6].indexOf('MR')>=0;});
+}
+inp.addEventListener('input',function(){
+  const q=this.value.trim().toUpperCase();
+  document.getElementById('sclr').style.display=q?'block':'none';
+  if(q.length<2){sbox.style.display='none';return;}
+  const zone=document.getElementById('f-zone').value;
+  const matches=Object.keys(DB).filter(function(k){
+    return isMR(k)&&(k.indexOf(q)>=0||DB[k][0].toUpperCase().indexOf(q)>=0)&&(!zone||DB[k][3]===zone);
+  }).slice(0,10);
+  if(!matches.length){sbox.style.display='none';return;}
+  sbox.innerHTML=matches.map(function(c){
+    return'<div class="sug-item" onclick="pick(\''+c+'\')">'+
+      '<span class="sug-code">'+c+'</span>'+
+      '<span class="sug-name">'+DB[c][0]+'</span>'+
+      '<span class="sug-zone">'+DB[c][3]+'</span></div>';
+  }).join('');
+  sbox.style.display='block';
+});
+inp.addEventListener('keydown',function(e){
+  if(e.key==='Enter')doSearch();
+  if(e.key==='Escape')sbox.style.display='none';
+});
+document.addEventListener('click',function(e){
+  if(!inp.contains(e.target)&&!sbox.contains(e.target))sbox.style.display='none';
+});
+function clearSearch(){
+  inp.value='';sbox.style.display='none';
+  document.getElementById('sclr').style.display='none';
+  document.getElementById('result').style.display='none';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('welcome').style.display='flex';
+}
+function pick(c){inp.value=c;sbox.style.display='none';document.getElementById('sclr').style.display='block';showEmployee(c);}
+function doSearch(){
+  const q=inp.value.trim().toUpperCase();if(!q)return;sbox.style.display='none';
+  const zone=document.getElementById('f-zone').value;
+  if(DB[q]){
+    if(!isMR(q)){
+      document.getElementById('welcome').style.display='none';
+      document.getElementById('result').style.display='none';
+      document.getElementById('empty').style.display='flex';
+      document.getElementById('empty-msg').textContent='Staff employee — only Meter Readers can be searched';
+      return;
+    }
+    if(!zone||DB[q][3]===zone){showEmployee(q);return;}
+  }
+  const found=Object.keys(DB).find(function(k){return isMR(k)&&DB[k][0].toUpperCase().indexOf(q)>=0&&(!zone||DB[k][3]===zone);});
+  if(found){showEmployee(found);return;}
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('result').style.display='none';
+  document.getElementById('empty').style.display='flex';
+  document.getElementById('empty-msg').textContent='No meter reader found';
+}
+
+// ── DISPLAY ───────────────────────────────────────────────────────
+function fmt(n){if(!n&&n!==0)return'--';return'\u20B9'+parseInt(n).toLocaleString('en-IN');}
+function inits(n){return n.split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase();}
+function chip(s){
+  if(!s)return'<span class="chip ch-nd">No Data</span>';
+  if(s==='Success')return'<span class="chip ch-ok">\u2713 Success</span>';
+  if(s.indexOf('Credited')>=0)return'<span class="chip ch-cr">Credited</span>';
+  if(s.indexOf('Fund')>=0)return'<span class="chip ch-fs">Fund Settled</span>';
+  if(s.indexOf('Returned')>=0)return'<span class="chip ch-rt">\u2717 Returned</span>';
+  return'<span class="chip ch-nd">'+s+'</span>';
+}
+
+function showEmployee(code){
+  const d=DB[code];
+  if(!d){document.getElementById('empty').style.display='flex';return;}
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('result').style.display='block';
+  document.getElementById('r-avatar').textContent=inits(d[0]);
+  document.getElementById('r-name').textContent=d[0];
+  document.getElementById('r-meta').textContent=code+' \u00B7 '+d[3];
+  document.getElementById('r-code').textContent=code;
+  document.getElementById('r-desg').textContent=d[1]||'--';
+  document.getElementById('r-div').textContent=d[2]||'--';
+  document.getElementById('r-zone').textContent=d[3]||'--';
+  document.getElementById('r-acc').textContent=d[4]||'Not on record';
+  document.getElementById('r-ifsc').textContent=d[5]||'--';
+  const months=d[6];
+  const latestM=MONTH_ORDER.slice().reverse().find(function(m){return months[m];});
+  document.getElementById('r-latest').textContent=latestM?fmt(months[latestM][0]):'--';
+  const pills=document.getElementById('r-pills');
+  pills.innerHTML='<span class="pill p-blue">'+(d[1]||'--')+'</span><span class="pill p-gray">'+d[3]+'</span>';
+  if(Object.values(months).some(function(mv){return mv[1]>0;}))
+    pills.innerHTML+='<span class="pill p-green">Payment Found</span>';
+  // Month tiles
+  const grid=document.getElementById('month-grid');
+  grid.innerHTML='';
+  MONTH_ORDER.forEach(function(mo){
+    const mv=months[mo];
+    const tile=document.createElement('div');tile.className='mt';
+    if(!mv){
+      tile.innerHTML='<div class="mt-bar bar-empty"></div>'+
+        '<div class="mt-head"><span class="mt-mlbl">'+mo+'</span><span class="mt-chip mc-empty">No Data</span></div>'+
+        '<div class="mt-nodata">Not available</div>';
+    }else{
+      const net=mv[0],paid=mv[1],status=mv[2],mode=mv[3],remark=mv[4],isPaidSheet=mv[5],src=mv[6];
+      let barCls,chipCls,chipTxt;
+      if(!isPaidSheet){barCls='bar-np';chipCls='mc-np';chipTxt='Not Paid Sheet';}
+      else if(paid>0&&paid===net){barCls='bar-ok';chipCls='mc-ok';chipTxt='Full Paid';}
+      else if(paid>0){barCls='bar-diff';chipCls='mc-diff';chipTxt='Partial';}
+      else{barCls='bar-np';chipCls='mc-np';chipTxt='Not Paid';}
+      const pc=paid===net?'var(--green)':'var(--amber)';
+      tile.innerHTML='<div class="mt-bar '+barCls+'"></div>'+
+        '<div class="mt-head"><span class="mt-mlbl">'+mo+'</span><span class="mt-chip '+chipCls+'">'+chipTxt+'</span></div>'+
+        '<div class="mt-row"><span class="mt-key">Net Payable</span><span class="mt-val">'+fmt(net)+'</span></div>'+
+        (paid>0?'<div class="mt-div"></div>'+
+          '<div class="mt-row"><span class="mt-key">Paid</span><span class="mt-val" style="color:'+pc+'">'+fmt(paid)+'</span></div>'+
+          '<div class="mt-meta">'+chip(status)+'<span class="mt-tag">'+(mode||'--')+'</span></div>':'')+
+        (src?'<div class="mt-meta" style="margin-top:6px"><span class="mt-tag" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;display:inline-block">'+src+'</span></div>':'')+
+        (remark?'<div class="mt-meta" style="color:var(--text3);font-size:10px;font-style:italic;margin-top:3px">'+remark+'</div>':'');
+    }
+    grid.appendChild(tile);
+  });
+  // Detail table
+  const tbody=document.getElementById('dtl-body');
+  tbody.innerHTML=MONTH_ORDER.map(function(mo){
+    const mv=months[mo];
+    if(!mv)return'<tr><td class="mono">'+mo+'</td><td colspan="7" style="color:var(--text3);font-style:italic">No data</td></tr>';
+    const net=mv[0],paid=mv[1],status=mv[2],mode=mv[3],remark=mv[4],isPaidSheet=mv[5],src=mv[6];
+    const diff=paid-net;
+    const diffHtml=paid===0?'<span style="color:var(--text3)">--</span>':
+      diff===0?'<span style="color:var(--green)">Matched</span>':
+      diff>0?'<span style="color:var(--amber)">+'+fmt(Math.abs(diff))+'</span>':
+      '<span style="color:var(--blue)">'+fmt(diff)+'</span>';
+    return'<tr>'+
+      '<td class="mono" style="color:var(--text);font-weight:700">'+mo+'</td>'+
+      '<td class="mono" style="font-size:10px;color:var(--text3);max-width:140px;white-space:normal">'+src+'</td>'+
+      '<td class="amt mono">'+fmt(net)+'</td>'+
+      '<td class="amt mono" style="color:'+(paid>0?'var(--green)':'var(--text3)')+'">'+( paid>0?fmt(paid):'--')+'</td>'+
+      '<td class="amt">'+(paid>0?diffHtml:'--')+'</td>'+
+      '<td style="font-size:11px">'+(mode||'--')+'</td>'+
+      '<td>'+chip(status)+'</td>'+
+      '<td style="font-size:11px;color:var(--text3);max-width:160px;white-space:normal">'+(remark||'--')+'</td>'+
+      '</tr>';
+  }).join('');
+  window.scrollTo(0,0);
+}
+
+updateStats();
+
+</script>
+</body>
+</html>
