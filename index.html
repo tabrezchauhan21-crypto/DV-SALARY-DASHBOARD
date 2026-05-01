@@ -231,6 +231,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 </div>
+
+<div style="background:var(--surface);border-top:1px solid var(--border);padding:14px 16px">
+  <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">&#9729; OneDrive Sync</div>
+  <div style="font-size:10px;color:var(--text3);margin-bottom:8px;line-height:1.5">OneDrive Excel share link paste karo.<br>Sab users ko automatically latest data milega.</div>
+  <input type="text" id="od-link" placeholder="https://1drv.ms/x/s!Abc..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:7px;font-size:11px;outline:none;font-family:var(--mono);margin-bottom:7px;box-sizing:border-box"/>
+  <button onclick="syncOneDrive()" style="width:100%;background:rgba(0,120,212,.2);border:1px solid #0078D4;color:#4DA6FF;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s">&#9729; Sync from OneDrive</button>
+  <div id="od-log" style="font-size:10px;font-family:var(--mono);color:#4DA6FF;background:rgba(0,120,212,.05);border:1px solid rgba(0,120,212,.2);border-radius:6px;padding:8px;margin-top:6px;display:none;white-space:pre-wrap;word-break:break-all;line-height:1.5;max-height:100px;overflow-y:auto"></div>
+</div>
+
 </div>
 <div class="main">
   <div class="welcome" id="welcome">
@@ -568,6 +577,89 @@ function processCSV(){
     reader.readAsText(file);
   });
 }
+
+
+// ── ONEDRIVE SYNC ─────────────────────────────────────────────────
+function convertOneDriveLink(shareUrl){
+  // Convert share link to direct download URL
+  // 1drv.ms or sharepoint.com share links
+  try{
+    if(shareUrl.indexOf('1drv.ms')>=0||shareUrl.indexOf('onedrive.live.com')>=0){
+      // Encode to base64 and build direct download URL
+      const b64=btoa(shareUrl).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+      return'https://api.onedrive.com/v1.0/shares/u!'+b64+'/root/content';
+    }
+    if(shareUrl.indexOf('sharepoint.com')>=0){
+      // SharePoint direct download
+      const b64=btoa(shareUrl).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+      return'https://api.onedrive.com/v1.0/shares/u!'+b64+'/root/content';
+    }
+    return shareUrl;
+  }catch(e){return shareUrl;}
+}
+
+async function syncOneDrive(){
+  const link=document.getElementById('od-link').value.trim();
+  const log=document.getElementById('od-log');
+  if(!link){alert('OneDrive share link paste karo');return;}
+  log.style.display='block';
+  log.textContent='Connecting to OneDrive...\n';
+  try{
+    const dlUrl=convertOneDriveLink(link);
+    log.textContent+='Downloading file...\n';
+    const resp=await fetch(dlUrl);
+    if(!resp.ok)throw new Error('HTTP '+resp.status+' - Link check karo (Anyone with link hona chahiye)');
+    const buf=await resp.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    // Try common sheet names
+    const sheetNames=['Payment Data','Sheet1','Data','PAYMENT DATA','payment_data'];
+    let ws=null;
+    for(const sn of sheetNames){if(wb.SheetNames.includes(sn)){ws=wb.Sheets[sn];break;}}
+    if(!ws)ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!rows.length)throw new Error('File empty hai');
+    let matched=0,missed=0;
+    rows.forEach(function(row){
+      const code=String(row['EMP_CODE']||row['emp_code']||'').trim().toUpperCase();
+      const amt=parseFloat(row['PAID_AMOUNT']||row['paid_amount']||0)||0;
+      const month=String(row['MONTH']||row['month']||'').trim();
+      const status=String(row['STATUS']||row['status']||'Success').trim();
+      const mode=String(row['MODE']||row['mode']||'SBI').trim();
+      const remark=String(row['REMARK']||row['remark']||'').trim();
+      if(!code||!amt||!month)return;
+      if(DB[code]){
+        if(!DB[code][6][month])DB[code][6][month]=[0,amt,status,mode,remark||getRemarkStr(status),1,'OneDrive'];
+        else{DB[code][6][month][1]=amt;DB[code][6][month][2]=status;DB[code][6][month][3]=mode;DB[code][6][month][4]=remark||getRemarkStr(status);}
+        matched++;
+      }else{missed++;}
+    });
+    log.textContent+='\u2713 Sync complete!\n';
+    log.textContent+='  Total rows: '+rows.length+'\n';
+    log.textContent+='  Matched: '+matched+'\n';
+    log.textContent+='  Not in DB: '+missed+'\n';
+    log.style.color='#4DA6FF';
+    updateStats();
+    // Save link for next time
+    try{localStorage.setItem('dvvnl_od_link',link);}catch(e){}
+    const q=document.getElementById('srch').value.trim().toUpperCase();
+    if(q&&DB[q])showEmployee(q);
+  }catch(err){
+    log.textContent+='\u2717 Error: '+err.message+'\n\n';
+    log.textContent+='Tips:\n';
+    log.textContent+='1. File pe right-click -> Share\n';
+    log.textContent+='2. "Anyone with link" select karo\n';
+    log.textContent+='3. Link copy karke paste karo\n';
+    log.style.color='#EF4444';
+  }
+}
+
+// Auto-load saved OneDrive link
+(function(){
+  try{
+    const saved=localStorage.getItem('dvvnl_od_link');
+    if(saved)document.getElementById('od-link').value=saved;
+  }catch(e){}
+})();
 
 // ── STATS ─────────────────────────────────────────────────────────
 function updateStats(){
