@@ -838,7 +838,7 @@ updateStats();
 // ── AUTO LOAD FROM payment_data.json (GitHub Pages) ──────────────
 async function loadFromGitHub(){
   try{
-    const res=await fetch('./payment_data.json?t='+Date.now());
+    const res=await fetch('https://tabrezchauhan21-crypto.github.io/DV-SALARY-DASHBOARD/payment_data.json?t='+Date.now());
     if(!res.ok)return;
     const compact=await res.json();
     let loaded=0;
@@ -849,7 +849,7 @@ async function loadFromGitHub(){
       loaded++;
     });
     updateStats();
-    console.log('Auto-loaded '+loaded+' employees from payment_data.json');
+    console.log('Auto-loaded '+loaded+' employees from GitHub');
   }catch(e){console.log('payment_data.json not found');}
 }
 loadFromGitHub();
