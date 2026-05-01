@@ -835,6 +835,25 @@ function showEmployee(code){
 
 updateStats();
 
+// ── AUTO LOAD FROM payment_data.json (GitHub Pages) ──────────────
+async function loadFromGitHub(){
+  try{
+    const res=await fetch('./payment_data.json?t='+Date.now());
+    if(!res.ok)return;
+    const compact=await res.json();
+    let loaded=0;
+    Object.entries(compact).forEach(function(e){
+      const code=e[0],arr=e[1];
+      if(!DB[code])DB[code]=[arr[0],arr[1],arr[2],arr[3],arr[4],arr[5],arr[6]||{}];
+      else Object.assign(DB[code][6],arr[6]||{});
+      loaded++;
+    });
+    updateStats();
+    console.log('Auto-loaded '+loaded+' employees from payment_data.json');
+  }catch(e){console.log('payment_data.json not found');}
+}
+loadFromGitHub();
+
 </script>
 </body>
 </html>
