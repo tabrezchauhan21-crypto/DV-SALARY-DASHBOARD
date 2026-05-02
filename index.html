@@ -970,8 +970,31 @@ async function loadFromGitHub(){
     let loaded=0;
     Object.entries(compact).forEach(function(e){
       const code=e[0],arr=e[1];
-      if(!DB[code])DB[code]=[arr[0],arr[1],arr[2],arr[3],arr[4],arr[5],arr[6]||{}];
-      else Object.assign(DB[code][6],arr[6]||{});
+      const extMonths=arr[6]||{};
+      if(!DB[code]){
+        // New employee not in embedded DB - add with safe defaults
+        DB[code]=[arr[0],arr[1],arr[2],arr[3],arr[4],arr[5],{}];
+        Object.entries(extMonths).forEach(function(me){
+          var m=me[0],mv=me[1];
+          // Only add if it has 21 elements (new format)
+          if(Array.isArray(mv)&&mv.length>=21){
+            DB[code][6][m]=mv;
+          }
+        });
+      } else {
+        // Merge only payment fields into existing salary data
+        Object.entries(extMonths).forEach(function(me){
+          var m=me[0],mv=me[1];
+          if(Array.isArray(mv)&&mv.length>=21){
+            // New format - safely merge payment fields only
+            if(!DB[code][6][m]) DB[code][6][m]=mv;
+            else{DB[code][6][m][16]=mv[16];DB[code][6][m][17]=mv[17];DB[code][6][m][18]=mv[18];}
+          } else if(Array.isArray(mv)&&mv.length===7){
+            // Old format (7 items) - extract paid/status/mode into existing
+            if(DB[code][6][m]){DB[code][6][m][16]=mv[1];DB[code][6][m][17]=mv[2];DB[code][6][m][18]=mv[3];}
+          }
+        });
+      }
       loaded++;
     });
     updateStats();
