@@ -969,29 +969,41 @@ async function loadFromGitHub(){
     const compact=JSON.parse(text);
     let loaded=0;
     Object.entries(compact).forEach(function(e){
-      const code=e[0],arr=e[1];
-      const extMonths=arr[6]||{};
+      var code=e[0],arr=e[1];
+      var extMonths=arr[6]||{};
+      // Convert old 7-item format to 21-item format
+      // Old: [net,paid,status,mode,remark,paid_sheet,src]
+      // New: [allot,probe,ocr,manual,tbills,ppct,opct,bpct,sal,basic,gross,pf,esic,ded,bonus,net,paid,status,mode,paid_sheet,src]
+      function toNew(mv){
+        if(!Array.isArray(mv))return null;
+        if(mv.length>=21)return mv;
+        if(mv.length===7){
+          return[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,mv[0],mv[1],mv[2],mv[3],mv[5],mv[6]];
+        }
+        return null;
+      }
       if(!DB[code]){
-        // New employee not in embedded DB - add with safe defaults
+        // Not in embedded DB - create new entry
         DB[code]=[arr[0],arr[1],arr[2],arr[3],arr[4],arr[5],{}];
         Object.entries(extMonths).forEach(function(me){
-          var m=me[0],mv=me[1];
-          // Only add if it has 21 elements (new format)
-          if(Array.isArray(mv)&&mv.length>=21){
-            DB[code][6][m]=mv;
-          }
+          var newMv=toNew(me[1]);
+          if(newMv) DB[code][6][me[0]]=newMv;
         });
       } else {
-        // Merge only payment fields into existing salary data
+        // Exists in embedded DB - merge month data
         Object.entries(extMonths).forEach(function(me){
-          var m=me[0],mv=me[1];
-          if(Array.isArray(mv)&&mv.length>=21){
-            // New format - safely merge payment fields only
-            if(!DB[code][6][m]) DB[code][6][m]=mv;
-            else{DB[code][6][m][16]=mv[16];DB[code][6][m][17]=mv[17];DB[code][6][m][18]=mv[18];}
-          } else if(Array.isArray(mv)&&mv.length===7){
-            // Old format (7 items) - extract paid/status/mode into existing
-            if(DB[code][6][m]){DB[code][6][m][16]=mv[1];DB[code][6][m][17]=mv[2];DB[code][6][m][18]=mv[3];}
+          var m=me[0],newMv=toNew(me[1]);
+          if(!newMv)return;
+          if(!DB[code][6][m]){
+            // Month not in embedded DB - add it
+            DB[code][6][m]=newMv;
+          } else {
+            // Update payment fields only (indices 15-18)
+            DB[code][6][m][15]=newMv[15]; // net
+            DB[code][6][m][16]=newMv[16]; // paid
+            DB[code][6][m][17]=newMv[17]; // status
+            DB[code][6][m][18]=newMv[18]; // mode
+            if(newMv[20]) DB[code][6][m][20]=newMv[20]; // src
           }
         });
       }
